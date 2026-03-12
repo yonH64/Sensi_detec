@@ -15,6 +15,9 @@ Fig[0-9]_*.pdf
 test_overview_*.pdf
 test_report_*.pdf
 
+# ── Figures for README (tracked) ──────────────────────────
+!figures/*.png
+
 # ── Cache (WorldClim rasters etc., regenerable) ────────────
 cache/
 
