@@ -1,0 +1,29 @@
+# ── R / RStudio ──────────────────────────────────────────────
+.RData
+.RDataTmp*
+.Rhistory
+.Rproj.user/
+
+# ── Large model & data outputs (regenerable from scripts) ──
+*.rds
+sensitivity_models_env.RData
+
+# ── Generated results (regenerable from scripts) ───────────
+Q[0-9]_*.csv
+model_comparison_table.csv
+Fig[0-9]_*.pdf
+test_overview_*.pdf
+test_report_*.pdf
+
+# ── Cache (WorldClim rasters etc., regenerable) ────────────
+cache/
+
+# ── Archive (superseded files, not for version control) ────
+_archive/
+
+# ── Editor metadata ────────────────────────────────────────
+.positai/
+
+# ── OneDrive conflict artifacts ────────────────────────────
+*conflicted copy*
+~$*

@@ -1,0 +1,62 @@
+species,guild_major,family,guild_minor_habitat,guild_minor_diet
+Oryctolagus cuniculus,Lagomorph,Leporidae,Lagomorph,Lagomorph
+Lepus europaeus,Lagomorph,Leporidae,Lagomorph,Lagomorph
+Lepus timidus,Lagomorph,Leporidae,Lagomorph,Lagomorph
+Lepus granatensis,Lagomorph,Leporidae,Lagomorph,Lagomorph
+Lepus castroviejoi,Lagomorph,Leporidae,Lagomorph,Lagomorph
+Lepus corsicanus,Lagomorph,Leporidae,Lagomorph,Lagomorph
+Lepus tolai,Lagomorph,Leporidae,Lagomorph,Lagomorph
+Erinaceus europaeus,Insectivore,Erinaceidae,Insectivore,Insectivore
+Erinaceus roumanicus,Insectivore,Erinaceidae,Insectivore,Insectivore
+Talpa europaea,Insectivore,Talpidae,Insectivore,Insectivore
+Talpa occidentalis,Insectivore,Talpidae,Insectivore,Insectivore
+Talpa romana,Insectivore,Talpidae,Insectivore,Insectivore
+Talpa caeca,Insectivore,Talpidae,Insectivore,Insectivore
+Sciurus vulgaris,Rodent,Sciuridae,Rodent,Rodent
+Macaca sylvanus,Primate,Cercopithecidae,Primate,Primate
+Canis lupus,Carnivore,Canidae,Large predator,Large predator
+Canis aureus,Carnivore,Canidae,Meso predator,Meso predator
+Vulpes vulpes,Carnivore,Canidae,Meso predator,Meso predator
+Nyctereutes procyonoides,Carnivore,Canidae,Meso predator,Meso predator
+Ursus arctos,Carnivore,Ursidae,Large predator,Large predator
+Lynx lynx,Carnivore,Felidae,Large predator,Large predator
+Felis silvestris,Carnivore,Felidae,Meso predator,Meso predator
+Meles meles,Carnivore,Mustelidae,Meso predator,Meso predator
+Martes martes,Carnivore,Mustelidae,Meso predator,Meso predator
+Martes foina,Carnivore,Mustelidae,Meso predator,Meso predator
+Mustela nivalis,Carnivore,Mustelidae,Small predator,Small predator
+Mustela erminea,Carnivore,Mustelidae,Small predator,Small predator
+Mustela putorius,Carnivore,Mustelidae,Meso predator,Meso predator
+Mustela lutreola,Carnivore,Mustelidae,Meso predator,Meso predator
+Neogale vison,Carnivore,Mustelidae,Meso predator,Meso predator
+Mustela vison,Carnivore,Mustelidae,Meso predator,Meso predator
+Vormela peregusna,Carnivore,Mustelidae,Meso predator,Meso predator
+Gulo gulo,Carnivore,Mustelidae,Large predator,Large predator
+Lutra lutra,Carnivore,Mustelidae,Meso predator,Meso predator
+Genetta genetta,Carnivore,Viverridae,Meso predator,Meso predator
+Herpestes ichneumon,Carnivore,Herpestidae,Meso predator,Meso predator
+Procyon lotor,Carnivore,Procyonidae,Meso predator,Meso predator
+Myocastor coypus,Rodent,Myocastoridae,Aquatic rodent,Aquatic rodent
+Castor fiber,Rodent,Castoridae,Aquatic rodent,Aquatic rodent
+Sus scrofa,Ungulate,Suidae,Forest ungulate,Mixed feeder ungulate
+Alces alces,Ungulate,Cervidae,Forest ungulate,Browser ungulate
+Capreolus capreolus,Ungulate,Cervidae,Forest ungulate,Browser ungulate
+Cervus elaphus,Ungulate,Cervidae,Forest ungulate,Mixed feeder ungulate
+Cervus nippon,Ungulate,Cervidae,Forest ungulate,Mixed feeder ungulate
+Dama dama,Ungulate,Cervidae,Forest ungulate,Mixed feeder ungulate
+Rangifer tarandus,Ungulate,Cervidae,Open/mountain ungulate,Mixed feeder ungulate
+Bison bonasus,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Rupicapra rupicapra,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Rupicapra pyrenaica,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Capra ibex,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Capra pyrenaica,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Capra aegagrus,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Ovis orientalis,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Ovis gmelini,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Ovis musimon,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Bos taurus,Ungulate,Bovidae,Domestic ungulate,Domestic ungulate
+Ovis aries,Ungulate,Bovidae,Domestic ungulate,Domestic ungulate
+Capra hircus,Ungulate,Bovidae,Domestic ungulate,Domestic ungulate
+Ammotragus lervia,Ungulate,Bovidae,Open/mountain ungulate,Grazer ungulate
+Muntiacus reevesi,Ungulate,Cervidae,Forest ungulate,Browser ungulate
+Hydropotes inermis,Ungulate,Cervidae,Forest ungulate,Browser ungulate
