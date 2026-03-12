@@ -67,7 +67,7 @@ Deviation surfaces broken down by major taxonomic guild — ungulates dominate t
 ## Methods Overview
 
 | Stage | Script | Description |
-|----|----|----|
+|------------------|---------------------|---------------------------------|
 | **Data pipeline** | `Full1.R` | Processes raw CamTrap DP archives → detection metrics per species × window × dataset |
 | **Data preparation** | `prep_sensitivity_data.R` | Joins traits, environmental covariates, standardises for modelling |
 | **Model fitting** | `models_sensitivity_surface.R` | GAMMs via `mgcv::bam()` with cyclic splines and species-specific tensor product surfaces |
@@ -83,7 +83,7 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 ## Key Scripts
 
 | Script | Role |
-|----|----|
+|-----------------------------------------|-------------------------------|
 | `helpers.R` | Shared utility functions (sourced by all other scripts) |
 | `Full1.R` | Main data pipeline orchestration |
 | `prep_sensitivity_data.R` | Model data preparation |
