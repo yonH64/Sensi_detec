@@ -4,21 +4,21 @@ How does the choice of temporal sampling window affect what camera traps tell us
 
 ![Dataset locations](figures/dataset_map.png)
 
----
+------------------------------------------------------------------------
 
 ## Research Question
 
-Standardised camera-trap protocols like Snapshot Europe prescribe fixed temporal windows (e.g., 61 days starting September 1). But how sensitive are the resulting detection estimates to this specific choice? Rather than comparing two protocols, we ask: **across the full space of possible window designs, where do deviations from year-round monitoring peak, and why?**
+Standardised camera-trap protocols like Snapshot Europe prescribe fixed temporal windows (e.g., 61 days starting September 1). But how sensitive are the resulting detection estimates to this specific choice? Rather than comparing two protocols, we ask: **how well does this short window approximate what year-round monitoring would give me?**
 
-We construct a sliding window grid (16 durations × 53 start positions, stepped weekly across the year) and model the resulting ~86,000 species × window × dataset observations using species-specific GAM surfaces.
+We construct a sliding window grid (16 durations × 53 start positions, stepped weekly across the year) and model the resulting \~86,000 species × window × dataset observations using species-specific GAM surfaces.
 
----
+------------------------------------------------------------------------
 
 ## Key Results
 
 ### The sensitivity surface
 
-The main result: a 2D heatmap of predicted absolute deviation in daily detection rate (|Δλ|), averaged across species. Bright colours = high deviation. Cyan diamonds mark the Snapshot Europe CORE and BUFFER windows, plus the ENETWILD EOW split.
+The main result: a 2D heatmap of predicted absolute deviation in daily detection rate (\|Δλ\|), averaged across species. Bright colours = high deviation. Cyan diamonds mark the Snapshot Europe CORE and BUFFER windows, plus the ENETWILD EOW split.
 
 ![Main sensitivity surface](figures/fig1_sensitivity_surface.png)
 
@@ -34,7 +34,7 @@ Species identity dominates the surface (ΔAIC ≈ −9,000 over guild-level mode
 
 ### Duration effect
 
-Deviation drops steeply with window length, then plateaus. ~80% of the reduction occurs by 60 days. The seasonal sensitivity is strongest for short windows.
+Deviation drops steeply with window length, then plateaus. \~80% of the reduction occurs by 60 days. The seasonal sensitivity is strongest for short windows.
 
 ![Duration curves by season](figures/fig4_duration_curves.png)
 
@@ -62,28 +62,28 @@ Deviation surfaces broken down by major taxonomic guild — ungulates dominate t
 
 ![Guild surfaces](figures/fig2_guild_surfaces.png)
 
----
+------------------------------------------------------------------------
 
 ## Methods Overview
 
 | Stage | Script | Description |
-|-------|--------|-------------|
+|----|----|----|
 | **Data pipeline** | `Full1.R` | Processes raw CamTrap DP archives → detection metrics per species × window × dataset |
 | **Data preparation** | `prep_sensitivity_data.R` | Joins traits, environmental covariates, standardises for modelling |
 | **Model fitting** | `models_sensitivity_surface.R` | GAMMs via `mgcv::bam()` with cyclic splines and species-specific tensor product surfaces |
 | **Results extraction** | `sensitivity_results.R` | Derives Q1–Q8 outputs (duration effect, seasonal profiles, optimal timing, protocol evaluation, etc.) |
 | **Figures** | `sensitivity_figures.R` | 8 publication figures |
 
-The best model (M6) fits species-specific 2D surfaces over day-of-year (cyclic) × duration, with temperature seasonality (BIO4), effort controls, and dataset × species random effects. Gamma(log) family for absolute deviations. Deviance explained: **89.8%** for the primary metric (|Δλ|).
+The best model (M6) fits species-specific 2D surfaces over day-of-year (cyclic) × duration, with temperature seasonality (BIO4), effort controls, and dataset × species random effects. Gamma(log) family for absolute deviations. Deviance explained: **89.8%** for the primary metric (\|Δλ\|).
 
 Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKFLOW.md)
 
----
+------------------------------------------------------------------------
 
 ## Key Scripts
 
 | Script | Role |
-|--------|------|
+|----|----|
 | `helpers.R` | Shared utility functions (sourced by all other scripts) |
 | `Full1.R` | Main data pipeline orchestration |
 | `prep_sensitivity_data.R` | Model data preparation |
@@ -92,16 +92,14 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 | `sensitivity_figures.R` | Publication figures |
 | `dataset_report.R` | Per-dataset diagnostic reports + environmental covariate extraction |
 
----
+------------------------------------------------------------------------
 
 ## Data
 
 Raw camera-trap datasets are not included in this repository. Model outputs (`.rds`, `.RData`) and generated results (`Q*.csv`, `Fig*.pdf`) are excluded via `.gitignore` but can be regenerated by running the pipeline.
 
-**Species**: 24 species passing data thresholds across ≥3 datasets (of 63 in the full taxonomy).
-**Datasets**: 23 camera-trap arrays across 10 European countries, yielding 24 dataset-slices after temporal splitting.
-**Observations**: 86,108 species × window × dataset rows for species-level models; ~20,000 for community-level models.
+**Species**: 24 species passing data thresholds across ≥3 datasets (of 63 in the full taxonomy). **Datasets**: 23 camera-trap arrays across 10 European countries, yielding 24 dataset-slices after temporal splitting. **Observations**: 86,108 species × window × dataset rows for species-level models; \~20,000 for community-level models.
 
----
+------------------------------------------------------------------------
 
 *Last updated: March 2026*
