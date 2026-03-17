@@ -1263,8 +1263,8 @@ dataset_wrapper1 <- function(
     deploy_tbl <- deploy %>%
       transmute(
         camera_id = .data[[depl_id_deploy]],
-        start     = ymd_hms(.data[[start_col]], tz = "UTC"),
-        end       = ymd_hms(.data[[end_col]],   tz = "UTC")
+        start     = parse_ts_safe(.data[[start_col]]),
+        end       = parse_ts_safe(.data[[end_col]])
       ) %>%
       filter(end > start) %>%
       mutate(start = pmax(start, a_start),
@@ -1296,7 +1296,7 @@ dataset_wrapper1 <- function(
       transmute(
         camera_id = .data[[depl_id_obs]],
         species   = stringr::str_squish(stringr::str_trim(as.character(.data[[sci_col]]))),
-        timestamp = ymd_hms(.data[[date_col]], tz = "UTC")
+        timestamp = parse_ts_safe(.data[[date_col]])
       ) %>%
       filter(!is.na(camera_id), !is.na(species), nzchar(species), !is.na(timestamp),
              timestamp >= a_start, timestamp <= a_end) %>%

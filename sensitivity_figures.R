@@ -13,6 +13,8 @@
 #         Fig6_richness_surfaces.pdf
 #         Fig7_snapshot_evaluation.pdf
 #         Fig8_model_comparison.pdf
+#         Fig9_benchmark_noise_floor.pdf
+#         FigS1_robustness_benchmark.pdf  (supplementary)
 # ============================================================================
 
 library(mgcv)
@@ -313,6 +315,198 @@ fig8 <- ggplot(comp_tbl, aes(model, delta_AIC)) +
   theme(plot.title = element_text(size = 11))
 
 ggsave("Fig8_model_comparison.pdf", fig8, width = 7, height = 4)
+
+
+
+# ============================================================================
+# Fig 9: Benchmark noise floor
+# ============================================================================
+# Panel A: Inter-annual CV of lambda_full by species × site
+# Panel B: Overall SNR degradation with window duration
+# Panel C: % observations below noise floor
+# Panel D: Species-specific SNR curves for focal species
+
+cat("  Fig 9: Benchmark noise floor...\n")
+
+q9 <- read.csv("Q9_noise_floor.csv")
+cv_data <- read.csv("interannual_cv_lambda_full.csv")
+
+# --- Panel A: CV by species ---
+fig9a <- cv_data |>
+  mutate(species = reorder(species, cv)) |>
+  ggplot(aes(cv, species, fill = base_dataset)) +
+  geom_col() +
+  labs(x = "Inter-annual CV (%)", y = NULL, fill = "Site",
+       title = "(a) Benchmark variability") +
+  theme(legend.position = "bottom",
+        axis.text.y = element_text(face = "italic", size = 7))
+
+# --- Panel B: Overall SNR by window duration ---
+snr_duration <- q9 |> filter(section == "duration_summary")
+
+fig9b <- ggplot(snr_duration, aes(window_len, median_snr)) +
+  geom_ribbon(aes(ymin = q25_snr, ymax = q75_snr), alpha = 0.2) +
+  geom_line(linewidth = 0.8) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  annotate("text", x = 115, y = 1.5, label = "SNR = 1", color = "red",
+           size = 3, hjust = 1) +
+  scale_y_log10() +
+  labs(x = "Window duration (days)", y = "SNR (log scale)",
+       title = "(b) Overall SNR by duration")
+
+# --- Panel C: % below noise floor by duration ---
+fig9c <- ggplot(snr_duration, aes(window_len, pct_below_1)) +
+  geom_col(width = 6) +
+  labs(x = "Window duration (days)", y = "% obs. with SNR < 1",
+       title = "(c) Below noise floor")
+
+# --- Panel D: Species-specific SNR curves ---
+# Recover noise_floor from all_window_species + cv_data
+multi_year_bases <- unique(cv_data$base_dataset)
+noise_floor_local <- all_window_species |>
+  filter(window_id != "FULL",
+         !window_id %in% c("SNAP_EU_CORE", "SNAP_EU_BUFFER",
+                            "EOW_EARLY", "EOW_LATE")) |>
+  mutate(base_dataset = gsub("_slice\\d+$", "", dataset)) |>
+  filter(base_dataset %in% multi_year_bases) |>
+  left_join(cv_data |> select(base_dataset, species, sd_lambda, cv),
+            by = c("base_dataset", "species")) |>
+  filter(!is.na(sd_lambda)) |>
+  mutate(snr = abs(d_lambda) / sd_lambda)
+
+focal_species <- c("Cervus elaphus", "Alces alces", "Sciurus vulgaris",
+                    "Vulpes vulpes", "Ursus arctos", "Lepus europaeus")
+
+focal_curves <- noise_floor_local |>
+  filter(species %in% focal_species) |>
+  summarise(
+    median_snr = median(snr),
+    q25_snr    = quantile(snr, 0.25),
+    q75_snr    = quantile(snr, 0.75),
+    .by = c(species, window_len)
+  ) |>
+  left_join(cv_data |> summarise(cv = mean(cv), .by = species),
+            by = "species") |>
+  mutate(label = paste0(species, " (CV=", round(cv), "%)"))
+
+fig9d <- ggplot(focal_curves, aes(window_len, median_snr, color = label)) +
+  geom_line(linewidth = 0.7) +
+  geom_ribbon(aes(ymin = q25_snr, ymax = q75_snr, fill = label),
+              alpha = 0.08, color = NA) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  scale_y_log10() +
+  labs(x = "Window duration (days)", y = "SNR (log scale)",
+       color = NULL, fill = NULL,
+       title = "(d) Species-specific noise floor convergence") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(face = "italic", size = 8)) +
+  guides(color = guide_legend(ncol = 2), fill = "none")
+
+# --- Assemble ---
+fig9 <- fig9a + (fig9b / fig9c / fig9d) +
+  plot_layout(widths = c(1.1, 1)) +
+  plot_annotation(
+    title = "Benchmark noise floor: inter-annual variability of 12-month detection rate",
+    subtitle = "4 multi-year sites, 20 species"
+  )
+
+ggsave("figures/Fig9_benchmark_noise_floor.pdf", fig9, width = 14, height = 10)
+
+
+
+# ============================================================================
+# Fig S1: Benchmark robustness check (supplementary)
+# ============================================================================
+# Shows that the sensitivity surface shape is preserved when using 180-day
+# or 270-day benchmarks instead of the default 365-day benchmark.
+
+cat("  Fig S1: Benchmark robustness check...\n")
+
+rob_summary <- read.csv("robustness_benchmark_summary.csv")
+rob         <- readRDS("robustness_check_data.rds")
+
+# --- Panel A: Shape correlations by window duration ---
+corr_data <- rob_summary |>
+  filter(!is.na(shape_r_365_180)) |>
+  select(window_len, shape_r_365_180, shape_r_365_270) |>
+  pivot_longer(-window_len, names_to = "comparison", values_to = "correlation") |>
+  mutate(comparison = ifelse(comparison == "shape_r_365_180",
+                              "365d vs 180d", "365d vs 270d"))
+
+figS1a <- ggplot(corr_data, aes(window_len, correlation, color = comparison)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0.9, linetype = "dashed", alpha = 0.4) +
+  annotate("text", x = 118, y = 0.91, label = "r = 0.9", size = 2.8, alpha = 0.5) +
+  scale_color_manual(values = c("365d vs 180d" = "#1b9e77", "365d vs 270d" = "#d95f02")) +
+  labs(x = "Sub-window duration (days)",
+       y = "Shape correlation (r)",
+       color = "Benchmark\ncomparison",
+       title = "(a) Seasonal shape preservation") +
+  theme(legend.position = c(0.35, 0.25))
+
+# --- Panel B: Mean |d_lambda| by benchmark ---
+mean_data <- rob_summary |>
+  filter(!is.na(shape_r_365_180)) |>
+  select(window_len, mean_abs_d_365, mean_abs_d_270, mean_abs_d_180) |>
+  pivot_longer(-window_len, names_to = "benchmark", values_to = "mean_abs_d") |>
+  mutate(benchmark = case_when(
+    benchmark == "mean_abs_d_365" ~ "365-day",
+    benchmark == "mean_abs_d_270" ~ "270-day",
+    benchmark == "mean_abs_d_180" ~ "180-day"
+  ))
+
+figS1b <- ggplot(mean_data, aes(window_len, mean_abs_d, color = benchmark)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("365-day" = "grey30", "270-day" = "#d95f02",
+                                "180-day" = "#1b9e77")) +
+  labs(x = "Sub-window duration (days)",
+       y = expression("Mean |" * Delta * lambda * "|"),
+       color = "Benchmark\nduration",
+       title = "(b) Deviation magnitude by benchmark") +
+  theme(legend.position = c(0.75, 0.75))
+
+# --- Panel C: Example seasonal profiles at 29d and 85d ---
+profile_data <- rob |>
+  filter(window_len %in% c(29, 85)) |>
+  summarise(
+    abs_d_365 = mean(abs_d_lambda_365, na.rm = TRUE),
+    abs_d_270 = mean(abs_d_lambda_270, na.rm = TRUE),
+    abs_d_180 = mean(abs_d_lambda_180, na.rm = TRUE),
+    .by = c(day_start, window_len)
+  ) |>
+  pivot_longer(starts_with("abs_d_"), names_to = "benchmark", values_to = "abs_d") |>
+  mutate(
+    benchmark = case_when(
+      benchmark == "abs_d_365" ~ "365-day",
+      benchmark == "abs_d_270" ~ "270-day",
+      benchmark == "abs_d_180" ~ "180-day"
+    ),
+    duration_label = paste0(window_len, "-day window")
+  )
+
+figS1c <- ggplot(profile_data, aes(day_start, abs_d, color = benchmark)) +
+  geom_line(linewidth = 0.7) +
+  facet_wrap(~duration_label, scales = "free_y", ncol = 1) +
+  scale_color_manual(values = c("365-day" = "grey30", "270-day" = "#d95f02",
+                                "180-day" = "#1b9e77")) +
+  scale_x_continuous(breaks = month_breaks, labels = month_labels) +
+  labs(x = "Window start (day of year)",
+       y = expression("Mean |" * Delta * lambda * "|"),
+       color = "Benchmark",
+       title = "(c) Seasonal profiles by benchmark") +
+  theme(legend.position = "bottom")
+
+# --- Assemble ---
+figS1 <- (figS1a | figS1b) / figS1c +
+  plot_layout(heights = c(1, 1.2)) +
+  plot_annotation(
+    title = "Benchmark robustness check",
+    subtitle = "Sensitivity surface shape is preserved across 180-day, 270-day, and 365-day benchmarks"
+  )
+
+ggsave("figures/FigS1_robustness_benchmark.pdf", figS1, width = 12, height = 9)
 
 
 cat("\n=== All figures saved as PDF ===\n")

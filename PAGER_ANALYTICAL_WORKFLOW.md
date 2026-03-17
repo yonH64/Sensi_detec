@@ -90,7 +90,7 @@ Per-dataset environmental covariates are extracted from WorldClim v2.1 and MODIS
 The preparation script transforms the raw window metric outputs into model-ready data frames:
 
 ### 2.1 Species-Level Data (`sensitivity_species_data.rds`)
-- **86,108 rows** (24 species × ~848 windows × 23 datasets, minus unavailable combinations)
+- **123,902 rows** (26 species × ~848 windows × 35 dataset-slices, minus unavailable combinations)
 - Extracts `day_start` from window identifiers; computes `day_center = (day_start + window_len/2) % 365`
 - Computes absolute deviations: `abs_d_lambda`, `abs_d_rate`, `abs_d_matched_rate`
 - Joins species traits (`guild_major`, `guild_minor_habitat`, `guild_minor_diet`)
@@ -99,14 +99,14 @@ The preparation script transforms the raw window metric outputs into model-ready
 - Creates grouping factors: `species_f`, `dataset_f`, `ds_sp_f`
 
 ### 2.2 Richness-Level Data (`sensitivity_richness_data.rds`)
-- **20,400 rows** (windows × 24 datasets including sliced datasets)
+- **29,680 rows** (windows × 35 dataset-slices)
 - Same covariate engineering as species-level
 
 ---
 
 ## 3. Statistical Models (`models_sensitivity_surface.R`)
 
-All models are GAMMs fitted with `mgcv::bam()` using `method = "fREML"`, `discrete = TRUE`, and `nthreads = 4`. Outputs `sensitivity_gam_models.rds` and `sensitivity_models_env.RData` (cleaned environment loaded by downstream scripts). Total fitting time: ~2–3 minutes on 4 threads.
+All models are GAMMs fitted with `mgcv::bam()` using `method = "fREML"`, `discrete = TRUE`, and `nthreads = 4`. Outputs `sensitivity_gam_models.rds` and `sensitivity_models_env.RData` (cleaned environment loaded by downstream scripts). Total fitting time: ~11 minutes on 4 threads.
 
 ### 3.1 Model Comparison (abs_d_lambda only)
 
@@ -114,16 +114,16 @@ Eight model variants are compared to determine the optimal structure for the sen
 
 | Model | Structure | AIC | Dev. expl. |
 |-------|-----------|-----|------------|
-| **M6** | Species-specific 2D surfaces (24 species) | **−810,440** | **89.8%** |
-| M_diet | Diet-guild-specific surfaces (10 levels) | −801,378 | 88.7% |
-| M5 | Major guild surfaces + bio4 × duration | −798,311 | 88.3% |
-| M_hab | Habitat-guild-specific surfaces (9 levels) | −798,663 | 88.3% |
-| M3 | Major guild-specific surfaces (5 levels) | −796,949 | 88.1% |
-| M2 | Shared surface + guild-varying seasonality | −796,076 | 88.0% |
-| M4 | Shared surface + bio4 × duration interaction | −792,754 | 87.5% |
-| M1 | Single shared surface | −791,578 | 87.3% |
+| **M6** | Species-specific 2D surfaces (26 species) | **−1,123,832** | **86.8%** |
+| M_diet | Diet-guild-specific surfaces (10 levels) | −1,113,208 | 85.6% |
+| M_hab | Habitat-guild-specific surfaces (9 levels) | −1,110,209 | 85.2% |
+| M5 | Major guild surfaces + bio4 × duration | −1,109,765 | 85.2% |
+| M3 | Major guild-specific surfaces (5 levels) | −1,108,433 | 85.0% |
+| M2 | Shared surface + guild-varying seasonality | −1,107,520 | 84.9% |
+| M4 | Shared surface + bio4 × duration interaction | −1,100,257 | 84.0% |
+| M1 | Single shared surface | −1,099,062 | 83.9% |
 
-**Species-specific surfaces (M6) dominate**, with ΔAIC ≈ −9,063 over the best guild-level model (M_diet). The penalisation automatically regularises rare species based on data volume.
+**Species-specific surfaces (M6) dominate**, with ΔAIC ≈ −10,625 over the best guild-level model (M_diet). The penalisation automatically regularises rare species based on data volume.
 
 ### 3.2 Best Model Formula (M6)
 
@@ -146,18 +146,18 @@ abs_d_metric ~
 
 | Response | Family | N | Dev. explained |
 |----------|--------|---|----------------|
-| `abs_d_lambda` (TTE daily detection rate) | Gamma(log) | 86,108 | 89.8% |
-| `abs_d_matched_rate` (deconfounded spatial coverage rate) | Gamma(log) | 86,108 | 88.4% |
-| `abs_d_rate` (encounter rate) | Gamma(log) | 86,108 | 67.4% |
-| `d_rate` (signed encounter rate deviation) | Gaussian | 86,108 | 18.5% |
+| `abs_d_lambda` (TTE daily detection rate) | Gamma(log) | 123,903 | 86.8% |
+| `abs_d_matched_rate` (deconfounded spatial coverage rate) | Gamma(log) | 123,903 | 85.5% |
+| `abs_d_rate` (encounter rate) | Gamma(log) | 123,903 | 66.4% |
+| `d_rate` (signed encounter rate deviation) | Gaussian | 123,903 | 19.9% |
 
 ### 3.4 Community Models (shared surface)
 
 | Response | Family | N | Dev. explained |
 |----------|--------|---|----------------|
-| `prop_sr_full` (proportion of species recovered) | Beta(logit) | 19,505 | 70.6% |
-| `d_sr_raref` (rarefied richness deviation) | Gaussian | 20,353 | 27.2% |
-| `rho_lambda` (rank correlation of detection rates) | Beta(logit) | 9,887 | 37.1% |
+| `prop_sr_full` (proportion of species recovered) | Beta(logit) | 29,681 | 73.2% |
+| `d_sr_raref` (rarefied richness deviation) | Gaussian | 29,681 | 23.4% |
+| `rho_lambda` (rank correlation of detection rates) | Beta(logit) | 12,028 | 40.4% |
 
 Community models use a single shared surface (no species dimension), with `s(dataset_f, bs = "re")` for dataset-level random effects. The `rho_lambda` model is restricted to windows with ≥5 shared species to avoid artefactual boundary inflation from Spearman's rho with very few species (see `methods_note_rho_filter.md`).
 
@@ -171,7 +171,7 @@ Community models use a single shared surface (no species dimension), with `s(dat
 | Q2 | How does deviation depend on timing (season)? | Marginal effect of `day_start` at fixed durations | Seasonal profiles showing autumn peak |
 | Q3 | How do duration and timing interact? | Full 2D tensor product surface predictions | Heatmap: timing × duration, per metric |
 | Q4 | How do species traits modulate the surface? | Species-specific surfaces aggregated by guild | Season × species/guild deviation tables |
-| Q5 | How does temperature seasonality modulate deviation? | Parametric `s_bio4` coefficient | Effect size per metric (all significantly negative) |
+| Q5 | How does temperature seasonality modulate deviation? | Parametric `s_bio4` coefficient | Effect size per metric (significant for rate and matched rate; marginal for lambda) |
 | Q6 | Where do named protocols sit on the surface? | Predict at CORE (day 244, 61d), BUFFER (day 230, 89d), EOW_EARLY (day 214, 60d), EOW_LATE (day 274, 60d) | Predicted deviation vs surface optimum |
 | Q7 | What is the optimal window design? | Minimum-deviation timing per species/guild at key durations | Optimal start day per species at 30/60/90d |
 | Q8 | How does richness recovery vary? | Community model predictions (prop_sr_full, d_sr_raref, rho) | Richness surface: spring-summer peak for recovery |
@@ -195,13 +195,13 @@ Community models use a single shared surface (no species dimension), with `s(dat
 
 ## 6. Key Analytical Design Choices
 
-1. **Sensitivity surface framing**: Instead of comparing two specific protocols, we model detection metric deviation as a continuous function of window timing and duration. This uses all ~86,000 species-level observations (vs ~170 in the old CORE-vs-BUFFER comparison) and generalises to any sampling window design.
+1. **Sensitivity surface framing**: Instead of comparing two specific protocols, we model detection metric deviation as a continuous function of window timing and duration. This uses all ~124,000 species-level observations (vs ~170 in the old CORE-vs-BUFFER comparison) and generalises to any sampling window design.
 
 2. **Benchmark**: The FULL (365-day) window is treated as a benchmark, not as ground truth. All deviations are relative to what a full year of sampling yields.
 
 3. **Cyclic day-of-year**: The seasonal dimension uses cyclic cubic splines to ensure smooth wrapping from December to January.
 
-4. **Species-specific surfaces**: Each species gets its own 2D sensitivity surface, with penalisation controlling complexity. This outperforms guild-level grouping by ΔAIC ≈ 9,000, reflecting genuine species-level differences in seasonal activity patterns.
+4. **Species-specific surfaces**: Each species gets its own 2D sensitivity surface, with penalisation controlling complexity. This outperforms guild-level grouping by ΔAIC ≈ 10,600, reflecting genuine species-level differences in seasonal activity patterns.
 
 5. **Structural confound resolution**: Raw spatial coverage (`spatial_cov`) has two confounds (denominator and accumulation effects). The matched-camera approach restricts computations to cameras active in both periods, and the `-log(1-scov)/L` transformation converts to a daily detection rate that is fully deconfounded. All models use `d_matched_rate` rather than the raw `d_spatial_cov`.
 

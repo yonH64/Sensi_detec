@@ -1,9 +1,10 @@
 # sensitivity_results.R
 # ============================================================================
 # Extract derived quantities from the sensitivity surface models to answer
-# research questions Q1–Q8. Outputs CSV summary tables and key objects.
+# research questions Q1–Q9. Outputs CSV summary tables and key objects.
 #
 # Input:  sensitivity_models_env.RData  (from models_sensitivity_surface.R)
+#         interannual_cv_lambda_full.csv (for Q9 noise floor)
 #
 # Output: Q1_duration_effect.csv
 #         Q2_seasonal_profiles.csv
@@ -13,6 +14,7 @@
 #         Q6_snapshot_europe.csv
 #         Q7_optimal_timing.csv
 #         Q8_richness_surface.csv
+#         Q9_noise_floor.csv
 #         model_comparison_table.csv
 # ============================================================================
 
@@ -501,4 +503,106 @@ q8_out |>
   ) |>
   print()
 
-cat("\n=== Done. All Q1-Q8 results saved. ===\n")
+
+# ============================================================================
+# Q9: BENCHMARK NOISE FLOOR & SIGNAL-TO-NOISE RATIO
+# ============================================================================
+# How large are window deviations relative to inter-annual benchmark variability?
+# Uses multi-year sites (BE-Leuven, NO-evenstadlia, SI-serknica, SP-donana)
+# to define a species-specific noise floor.
+#
+# SNR = |d_lambda| / SD_benchmark
+# When SNR < 1, the deviation is smaller than year-to-year benchmark fluctuation.
+
+cat("── Q9: Benchmark noise floor ──────────────────────────────────\n")
+
+# ── 9a. Load inter-annual CV data ──
+cv_data <- read.csv("interannual_cv_lambda_full.csv")
+cat("  Inter-annual CV data:", nrow(cv_data), "species × site combinations\n")
+
+# ── 9b. Recover lambda_full and compute SNR per observation ──
+# Restrict to multi-year datasets where we have inter-annual SD
+multi_year_bases <- unique(cv_data$base_dataset)
+
+noise_floor <- all_window_species |>
+  filter(
+    window_id != "FULL",
+    !window_id %in% c("SNAP_EU_CORE", "SNAP_EU_BUFFER", "EOW_EARLY", "EOW_LATE")
+  ) |>
+  mutate(base_dataset = gsub("_slice\\d+$", "", dataset)) |>
+  filter(base_dataset %in% multi_year_bases) |>
+  left_join(
+    cv_data |> select(base_dataset, species, sd_lambda, cv),
+    by = c("base_dataset", "species")
+  ) |>
+  filter(!is.na(sd_lambda)) |>
+  mutate(
+    abs_d_lambda = abs(d_lambda),
+    snr = abs_d_lambda / sd_lambda
+  )
+
+cat("  Observations with SNR data:", nrow(noise_floor),
+    "(", n_distinct(noise_floor$species), "species )\n")
+
+# ── 9c. Summarise SNR by window duration ──
+snr_by_duration <- noise_floor |>
+  summarise(
+    median_snr    = median(snr),
+    q25_snr       = quantile(snr, 0.25),
+    q75_snr       = quantile(snr, 0.75),
+    pct_below_1   = mean(snr < 1) * 100,
+    pct_below_2   = mean(snr < 2) * 100,
+    median_abs_d  = median(abs_d_lambda),
+    median_sd     = median(sd_lambda),
+    n_obs         = n(),
+    .by = window_len
+  ) |>
+  mutate(level = "Overall") |>
+  arrange(window_len)
+
+# ── 9d. Per-species SNR summary at long windows (≥85d) ──
+snr_by_species <- noise_floor |>
+  filter(window_len >= 85) |>
+  summarise(
+    median_snr  = median(snr),
+    pct_below_1 = mean(snr < 1) * 100,
+    cv_pct      = first(cv),
+    n_obs       = n(),
+    .by = c(base_dataset, species)
+  ) |>
+  arrange(desc(pct_below_1))
+
+# ── 9e. Combine and save ──
+q9_out <- bind_rows(
+  snr_by_duration |>
+    mutate(base_dataset = NA_character_, species = NA_character_,
+           section = "duration_summary"),
+  snr_by_species |>
+    mutate(window_len = NA_integer_, q25_snr = NA_real_, q75_snr = NA_real_,
+           pct_below_2 = NA_real_, median_abs_d = NA_real_, median_sd = NA_real_,
+           level = NA_character_, section = "species_summary")
+)
+
+write.csv(q9_out, "Q9_noise_floor.csv", row.names = FALSE)
+cat("  Saved Q9_noise_floor.csv\n")
+
+# Print key results
+cat("\n  --- SNR by window duration (overall) ---\n")
+snr_by_duration |>
+  filter(window_len %in% c(15, 29, 57, 85, 120)) |>
+  select(window_len, median_snr, pct_below_1, n_obs) |>
+  mutate(median_snr = round(median_snr, 1),
+         pct_below_1 = round(pct_below_1, 2)) |>
+  print()
+
+cat("\n  --- Species approaching noise floor (≥85d windows, pct SNR<1 > 0) ---\n")
+snr_by_species |>
+  filter(pct_below_1 > 0) |>
+  mutate(median_snr = round(median_snr, 1),
+         pct_below_1 = round(pct_below_1, 1),
+         cv_pct = round(cv_pct, 1)) |>
+  print(n = 20)
+cat("\n")
+
+
+cat("\n=== Done. All Q1-Q9 results saved. ===\n")

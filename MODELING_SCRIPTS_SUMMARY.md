@@ -1,5 +1,7 @@
 # Modeling Scripts Summary
 
+> **⚠️ SUPERSEDED** — This document describes the old brms protocol-comparison approach (CORE vs BUFFER). These models have been replaced by the **sensitivity surface analysis** using `mgcv::bam()` GAMMs. See `models_sensitivity_surface.R` and `PAGER_ANALYTICAL_WORKFLOW.md` for the current approach. This document is retained for reference only.
+
 ## Overview
 
 Four modeling scripts fit Bayesian hierarchical models comparing SNAP_EU_CORE vs SNAP_EU_BUFFER protocols. Two complementary approaches (absolute deviation and MSE), each split into detection-level and richness-level analyses. All use parallel fitting via `future`/`furrr`.

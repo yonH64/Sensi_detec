@@ -1,6 +1,6 @@
 # Sensitivity of Camera-Trap Sampling Window Design on Detection Metrics
 
-How does the choice of temporal sampling window affect what camera traps tell us about wildlife? This project builds a **sensitivity surface** — a systematic map of how detection metric deviation from a 12-month benchmark varies as a function of window **timing** and **duration** — across 23 European camera-trap datasets and 24 mammal species.
+How does the choice of temporal sampling window affect what camera traps tell us about wildlife? This project builds a **sensitivity surface** — a systematic map of how detection metric deviation from a 12-month benchmark varies as a function of window **timing** and **duration** — across 26 European camera-trap datasets (35 dataset-slices) and 26 mammal species. A benchmark noise floor analysis (inter-annual variability of the 12-month reference) provides a species-specific stopping rule for the diminishing-returns question: *how long is long enough?*
 
 ![Dataset locations](figures/dataset_map.png)
 
@@ -10,7 +10,7 @@ How does the choice of temporal sampling window affect what camera traps tell us
 
 Standardised camera-trap protocols like Snapshot Europe prescribe fixed temporal windows (e.g., 61 days starting September 1). But how sensitive are the resulting detection estimates to this specific choice? Rather than comparing two protocols, we ask: **how well does this short window approximate what year-round monitoring would give me?**
 
-We construct a sliding window grid (16 durations × 53 start positions, stepped weekly across the year) and model the resulting \~86,000 species × window × dataset observations using species-specific GAM surfaces.
+We construct a sliding window grid (16 durations × 53 start positions, stepped weekly across the year) and model the resulting \~124,000 species × window × dataset observations using species-specific GAM surfaces.
 
 ------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@ The main result: a 2D heatmap of predicted absolute deviation in daily detection
 
 ### Species-level variation
 
-Species identity dominates the surface (ΔAIC ≈ −9,000 over guild-level models). Six focal species illustrate the range:
+Species identity dominates the surface (ΔAIC ≈ −10,600 over guild-level models). Six focal species illustrate the range:
 
 ![Species-specific surfaces](figures/fig3_species_surfaces.png)
 
@@ -62,6 +62,23 @@ Deviation surfaces broken down by major taxonomic guild — ungulates dominate t
 
 ![Guild surfaces](figures/fig2_guild_surfaces.png)
 
+### Benchmark noise floor & signal-to-noise ratio
+
+The 12-month benchmark itself fluctuates year-to-year (median inter-annual CV = 23% across 33 species × site combinations from 4 multi-year sites). A sub-window's deviation is only informative if it exceeds this inter-annual noise. We define **SNR = |Δλ| / SD(λ_full)** — when SNR < 1, the deviation is smaller than what natural year-to-year variation produces.
+
+| Window duration | Median SNR | % observations below noise floor |
+|-----------------|-----------|----------------------------------|
+| 15 d            | 86        | 0%                               |
+| 60 d            | ~22       | 0.1%                             |
+| 90 d            | ~13       | 0.6%                             |
+| 120 d           | 8.1       | 2.3%                             |
+
+For most species, the noise floor is not reached even at 120 days — the sensitivity surface carries real signal well beyond typical protocol durations. The stopping rule is genuinely **species-specific**: a handful of high-CV species (e.g., *Alces alces*, *Sciurus vulgaris* at specific sites) approach SNR < 1 at long windows, while most species remain well above.
+
+### Benchmark robustness
+
+The sensitivity surface shape is **robust to benchmark choice**. Recomputing deviations against 180-day and 270-day centred benchmarks preserves the seasonal profile (shape correlation r > 0.88 for all window lengths vs 180d; r > 0.96 for short windows vs 270d). The autumn rut spike and the duration smoothing curve appear regardless of benchmark duration. See supplementary Fig S1 (`figures/FigS1_robustness_benchmark.pdf`).
+
 ------------------------------------------------------------------------
 
 ## Methods Overview
@@ -71,10 +88,10 @@ Deviation surfaces broken down by major taxonomic guild — ungulates dominate t
 | **Data pipeline** | `Full1.R` | Processes raw CamTrap DP archives → detection metrics per species × window × dataset |
 | **Data preparation** | `prep_sensitivity_data.R` | Joins traits, environmental covariates, standardises for modelling |
 | **Model fitting** | `models_sensitivity_surface.R` | GAMMs via `mgcv::bam()` with cyclic splines and species-specific tensor product surfaces |
-| **Results extraction** | `sensitivity_results.R` | Derives Q1–Q8 outputs (duration effect, seasonal profiles, optimal timing, protocol evaluation, etc.) |
-| **Figures** | `sensitivity_figures.R` | 8 publication figures |
+| **Results extraction** | `sensitivity_results.R` | Derives Q1–Q9 outputs (duration effect, seasonal profiles, optimal timing, protocol evaluation, benchmark noise floor, etc.) |
+| **Figures** | `sensitivity_figures.R` | 9 main + 1 supplementary publication figures |
 
-The best model (M6) fits species-specific 2D surfaces over day-of-year (cyclic) × duration, with temperature seasonality (BIO4), effort controls, and dataset × species random effects. Gamma(log) family for absolute deviations. Deviance explained: **89.8%** for the primary metric (\|Δλ\|).
+The best model (M6) fits species-specific 2D surfaces over day-of-year (cyclic) × duration, with temperature seasonality (BIO4), effort controls, and dataset × species random effects. Gamma(log) family for absolute deviations. Deviance explained: **86.8%** for the primary metric (\|Δλ\|).
 
 Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKFLOW.md)
 
@@ -88,8 +105,8 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 | `Full1.R` | Main data pipeline orchestration |
 | `prep_sensitivity_data.R` | Model data preparation |
 | `models_sensitivity_surface.R` | All GAM model fitting |
-| `sensitivity_results.R` | Research question outputs (Q1–Q8 CSVs) |
-| `sensitivity_figures.R` | Publication figures |
+| `sensitivity_results.R` | Research question outputs (Q1–Q9 CSVs) |
+| `sensitivity_figures.R` | Publication figures (Figs 1–9, Fig S1) |
 | `dataset_report.R` | Per-dataset diagnostic reports + environmental covariate extraction |
 
 ------------------------------------------------------------------------
@@ -98,8 +115,8 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 
 Raw camera-trap datasets are not included in this repository. Model outputs (`.rds`, `.RData`) and generated results (`Q*.csv`, `Fig*.pdf`) are excluded via `.gitignore` but can be regenerated by running the pipeline.
 
-**Species**: 24 species passing data thresholds across ≥3 datasets (of 63 in the full taxonomy). **Datasets**: 23 camera-trap arrays across 10 European countries, yielding 24 dataset-slices after temporal splitting. **Observations**: 86,108 species × window × dataset rows for species-level models; \~20,000 for community-level models.
+**Species**: 26 species passing data thresholds across ≥3 datasets (of 63 in the full taxonomy). **Datasets**: 26 camera-trap arrays across 10 European countries, yielding 35 dataset-slices after temporal splitting. **Observations**: 123,902 species × window × dataset rows for species-level models; \~30,000 for community-level models.
 
 ------------------------------------------------------------------------
 
-*Last updated: March 2026*
+*Last updated: 17 March 2026*

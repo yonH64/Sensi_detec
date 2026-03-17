@@ -23,9 +23,10 @@ We modelled rho on the transformed scale ((rho + 1) / 2) using beta regression
 (betar family with logit link). Beta regression assumes a continuous response on
 (0, 1) and is not designed to accommodate point masses at the boundaries.
 
-Including all observations yielded 17.3% deviance explained. Restricting to
-windows with ≥ 5 shared species (removing 38% of observations, predominantly
-those driving the boundary artefact) more than doubled deviance explained to 37.1%.
+Including all observations yielded low deviance explained. Restricting to
+windows with ≥ 5 shared species (removing the observations predominantly
+driving the boundary artefact) substantially improved model fit to 40.4%
+deviance explained (N = 12,028).
 
 ## Suggested methods text
 
@@ -35,6 +36,5 @@ those driving the boundary artefact) more than doubled deviance explained to 37.
 > shared species, Spearman's rho is limited to a small number of discrete values
 > and frequently produces artefactual perfect correlations (rho = 1); in our
 > dataset, 73% of perfect correlations arose from windows with only 3–4 shared
-> species. This filter retained 9,887 of the original 15,891 observations (62%)
-> and substantially improved model fit (deviance explained: 37.1% vs 17.3%
-> without filtering).
+> species. This filter retained 12,028 observations and substantially improved
+> model fit (deviance explained: 40.4%).

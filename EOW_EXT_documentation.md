@@ -1,8 +1,10 @@
 # EOW_EXT: Extended Observation Window
 
+> **⚠️ SUPERSEDED** — EOW_EXT has been replaced in the pipeline by **EOW_EARLY** (Aug 2–Sep 30, 60d) and **EOW_LATE** (Oct 1–Nov 29, 60d), which split the autumn window at the CORE midpoint (Oct 1) to provide a pre-rut vs post-rut contrast at matching duration. EOW_EXT is no longer computed by `Full1.R`. This document is retained for historical reference only.
+
 ## Overview
 
-**EOW_EXT** (Extended Observation Window) is a 6-week (42-day) sampling window centered on the **Snapshot Europe Core** protocol period. It provides a focused alternative to the full SNAP_EU_CORE (61 days) and SNAP_EU_BUFFER (89 days) windows.
+**EOW_EXT** (Extended Observation Window) was a 6-week (42-day) sampling window centered on the **Snapshot Europe Core** protocol period. It provided a focused alternative to the full SNAP_EU_CORE (61 days) and SNAP_EU_BUFFER (89 days) windows.
 
 ---
 

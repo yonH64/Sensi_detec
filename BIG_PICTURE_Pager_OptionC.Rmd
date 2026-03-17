@@ -1,0 +1,269 @@
+---
+title: "Optimising camera-trap sampling windows: how start date and duration shape detection accuracy and precision across European mammals"
+author: "Yon Halotel-Diez"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: flatly
+    highlight: tango
+    number_sections: true
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+---
+
+# Pager metadata
+
+| Field | Details |
+|---|---|
+| **Investigator** | Yon Halotel-Diez |
+| **Contact** | yon.halotel\@inn.no |
+| **Data gathering** | Fall 2025 -- Winter 2026 |
+| **Analysis** | Spring -- Summer 2026 |
+| **Writing** | Fall 2026 |
+| **Submission** | Winter 2026/2027 |
+| **Open science** | To be discussed with data owners and journal requirements; processed outputs + code will be shared where possible |
+
+---
+
+# Data
+
+## Data requirements
+
+Camera-trap datasets in **CamTrap DP format** (`deployments.csv` + `observations.csv`) spanning ≥ 12 months (multi-year allowed). Multiple European datasets from the Snapshot Europe network and affiliated projects.
+
+## Primary variables
+
+Two complementary response variable families for each detection metric:
+
+- **Bias (accuracy):** absolute deviation from 12-month benchmark, |d_X| = |X_window − X_FULL|. Measures systematic departure from the annual mean — how "wrong" the estimate is.
+- **MSE (total estimation error):** MSE_X = (X_window − X_FULL)² + SE²_window. Integrates bias and sampling variance into a single loss function — how "unreliable" the estimate is. This is the proper criterion for practical window design: a window can be unbiased but imprecise (high SE), or biased but precise.
+
+**Detection metrics:**
+
+- Daily detection rate λ (TTE model); independent event rate; matched-camera detection rate
+- Community: rarefied richness, proportion of FULL species recovered, rank correlation (ρ)
+
+## Potential covariates
+
+| Category | Variables |
+|---|---|
+| Window parameters | Start day-of-year, window duration (15–120 days) |
+| Protocol identity | CORE, BUFFER, EOW_EARLY, EOW_LATE |
+| Sampling effort | Trap-days, n_sites |
+| Species | Identity and functional guild (6 major guilds; 11 minor habitat; 12 minor diet) |
+| Environmental | Temperature seasonality (BIO4), latitude, trap-array extent |
+| Community | Species richness, mean detectability from FULL benchmark |
+
+---
+
+# Introduction
+
+Camera trapping has become an indispensable tool for wildlife research, conservation management and citizen-science programmes worldwide. Yet the choice of **when** and **for how long** to deploy cameras — the *sampling window* — remains surprisingly under-studied. Optimal windows are likely question- and context-specific, shaped by ecological, geographical and logistical parameters: an herbivore in Mediterranean Greece follows seasonal cues very different from those of a large carnivore in sub-arctic Norway. In a focused, single-species study, researchers can tailor deployments precisely. Continental, multi-species initiatives cannot accommodate dozens of bespoke windows and must adopt informed trade-offs.
+
+The **Snapshot Europe network** standardises a fixed autumn protocol (CORE: 1 Sep–31 Oct, 61 days; BUFFER: 18 Aug–14 Nov, 89 days) across dozens of datasets and species, but whether this window reliably approximates year-round detection estimates remains largely untested. Similarly, the EOW/ENETWILD protocol specifies ≥ 60 days in summer/early autumn, and TEAM recommends 30-day dry-season deployments. These collapse into roughly three protocol families — a scarcity of explicit temporal prescriptions that itself motivates systematic evaluation.
+
+Evaluating window design requires two distinct criteria. **Bias** (deviation from the annual benchmark) tells us whether a window systematically over- or under-estimates detection rates. **Precision** (sampling variance) tells us how much estimates vary due to finite sampling. These are complementary: a short autumn window during the ungulate rut may have large bias (detection is inflated relative to the annual mean) but excellent precision (many detections yield tight confidence intervals). A long winter window might have low bias but poor precision for rare species (few detections yield wide intervals). The optimal window depends on which criterion — or which combination — the practitioner prioritises.
+
+This study takes a **dual-target approach**, modelling both bias (|d|) and total estimation error (MSE = bias² + variance) as continuous functions of window timing, duration, species identity, and environmental context. This directly addresses the conflation between seasonal amplitude and estimation quality, and provides practitioners with both pieces of information needed for evidence-based window design.
+
+---
+
+# Research questions, objectives and hypotheses
+
+## Research questions
+
+1. How does the choice of camera-trap temporal sampling window (timing and duration) affect species-level detection metrics and community-level richness estimates, relative to a 12-month benchmark?
+2. Do bias and precision respond differently to window design? Specifically, do bias and MSE surfaces differ in shape — identifying windows where bias is high but MSE is low (or vice versa)?
+3. Does the sensitivity of detection estimates to window choice vary among species, functional guilds, and environmental contexts (latitude, temperature seasonality)?
+4. Where do existing standardised protocols sit on the bias and MSE surfaces, and which criterion do they optimise?
+
+## Objectives
+
+1. Construct **paired sensitivity surfaces** — one for bias (|d|) and one for MSE — mapping estimation quality as a function of window start day and duration, for multiple detection and richness metrics.
+2. Fit species-specific generalised additive mixed models (GAMMs) separately for |d| and MSE responses, quantifying how timing, duration, and their interaction shape each.
+3. Compare bias and MSE surfaces to identify **regions of divergence**: windows that minimise bias but not MSE, or vice versa.
+4. Evaluate named protocols (CORE, BUFFER, EOW_EARLY, EOW_LATE) on both surfaces, providing dual-criterion protocol assessment.
+5. Identify optimal windows per species and guild under both criteria at operationally relevant durations (30, 60, 90 days).
+
+## Working hypotheses
+
+| Hypothesis | Statement |
+|---|---|
+| **H1 – Duration effect** | Longer windows reduce both bias and MSE, but with different saturation points. Bias saturates first (~60 days); MSE continues decreasing as precision improves with additional sampling effort. |
+| **H2 – Timing effect** | Window timing interacts with duration: short windows are more sensitive to start date than long windows. Timing sensitivity is species-specific, driven by behavioural seasonality. |
+| **H3 – Bias–precision divergence** | Windows during high-activity seasons (e.g., autumn rut) have high bias but low MSE (variance component small relative to bias²), while windows during low-activity seasons have low bias but high MSE (few detections → large SE). The surfaces differ in shape, particularly for short windows. |
+| **H4 – Species heterogeneity** | Species with stronger seasonality show larger bias variation. Species with lower overall detectability show larger MSE variation. Species-specific surfaces outperform guild-level groupings. |
+| **H5 – Environmental modulation** | Temperature seasonality (BIO4) predicts bias amplitude: sites with more pronounced seasons exhibit more variable detection rates. Its effect on MSE may be weaker if variance is dominated by sampling effort. |
+| **H6 – Rank preservation** | Species detectability rankings are preserved across windows (high ρ), even when absolute detection rates are biased — implying that comparative analyses are robust to window choice. |
+
+---
+
+# Analytical workflow
+
+## Data pipeline and window construction
+
+Multiple European camera-trap datasets stored as CamTrap DP archives (`deployments.csv` + `observations.csv`) are processed through an automated pipeline. Multi-year datasets are split into non-overlapping 12-month **"anchor" slices** using a scoring algorithm that maximises trapping effort and detection coverage; slices are treated as independent dataset-slices.
+
+Observations are filtered to a curated list of c. **61 European terrestrial mammals** across six major guilds (carnivores, ungulates, lagomorphs, rodents, insectivores, primates).
+
+A systematic grid of **c. 850 sampling windows** is constructed, varying by:
+
+- Start day-of-year (every 7 days, 53 positions)
+- Window length (15 to 120 days in 7-day steps, 16 durations)
+
+Four named protocol windows are added as specific coordinates:
+
+| Protocol | Dates | Duration |
+|---|---|---|
+| SNAP_EU_CORE | Sep 1 – Oct 31 | 61 d |
+| SNAP_EU_BUFFER | Aug 18 – Nov 14 | 89 d |
+| EOW_EARLY | Aug 2 – Sep 30 | 60 d |
+| EOW_LATE | Oct 1 – Nov 29 | 60 d |
+
+A **FULL 365-day** window serves as the primary benchmark. Additional centred benchmarks (180-day, 270-day) are computed for robustness assessment.
+
+## Metric computation
+
+### Species-level detection metrics
+*(per species × window × dataset-slice)*
+
+- **Daily detection rate (λ):** derived from a time-to-first-detection exponential hazard model with censoring. Effort-free and window-length-independent.
+- **Event rate:** total independent events / total trap-days (30-min independence gap per camera × species).
+- **Matched-camera detection rate:** `–log(1 – spatial_cov_m) / L`, where `spatial_cov_m` is coverage on cameras active in both sub-window and FULL period. Fully deconfounded for denominator and accumulation effects.
+- **Standard errors** for each metric (delta method for TTE; camera-level empirical SE for rate; derived SE for matched rate).
+
+### Community-level richness metrics
+*(per window × dataset-slice)*
+
+- Observed richness (`sr_obs`)
+- Incidence-based rarefied richness (`sr_raref`)
+- Proportion of FULL species detected (`prop_sr_full`)
+- Spearman rank correlation of species detection rates between window and FULL (`rho_lambda`)
+
+### Dual response variables
+
+For each metric X:
+
+| Response | Formula | Interpretation |
+|---|---|---|
+| **Bias** (|d|) | \|X_window − X_FULL\| | Systematic deviation from annual benchmark. Captures seasonal amplitude. |
+| **MSE** | (X_window − X_FULL)² + SE²_window | Total estimation error. Integrates bias² and sampling variance. |
+| **Signed deviation** (d) | X_window − X_FULL | Direction of seasonal effect (+/−). |
+| **Variance fraction** | SE² / MSE | Proportion of total error from sampling variance vs. bias. Diagnostic for surface divergence. |
+
+The **variance fraction** is a key diagnostic: when it is small (< 10%), the bias surface alone is a good proxy for MSE. When it is large (> 30%), the two surfaces diverge and MSE provides information that bias alone does not.
+
+## Inclusion thresholds
+
+A species × window combination is retained only if it meets:
+
+- ≥ 20 independent events
+- ≥ 5 positive occasions (days with detections)
+- ≥ 5 camera sites with detections
+
+All failed combinations are logged separately.
+
+## Statistical models
+
+All models are **GAMMs** fitted with `mgcv::bam()` using `method = "fREML"`, `discrete = TRUE`, and `nthreads = 4`.
+
+### Species-level models
+
+For each detection metric, **two parallel models** are fitted:
+
+**Bias model:**
+```r
+abs_d_metric ~ te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6), by = species_f) +
+               species_f +
+               s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+               s(ds_sp_f, bs = "re")
+family = Gamma(link = "log")
+```
+
+**MSE model:**
+```r
+mse_metric ~ te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6), by = species_f) +
+             species_f +
+             s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+             s(ds_sp_f, bs = "re")
+family = Gamma(link = "log")
+```
+
+Both use identical structure (M6: species-specific surfaces) for direct comparison.
+
+**Key design choices:**
+
+- `bs = "cc"` (cyclic spline) for `day_start` with knots at 0 and 365: c. 19% of windows cross the year boundary
+- `te()` tensor product: allows the timing × duration interaction to be non-separable
+- `by = species_f`: separate surface per species, with adaptive penalisation
+- `Gamma(link = "log")`: appropriate for strictly positive, right-skewed responses
+- Random effects `s(ds_sp_f, bs = "re")`: equivalent to `(1 | dataset:species)`
+
+### Model comparison and selection
+
+The same eight model variants (M1–M6, M_hab, M_diet) are compared for both bias and MSE responses. Species-specific surfaces (M6) are expected to dominate for both, but with potentially different ΔAIC margins if MSE variation is less species-structured than bias variation.
+
+### Research questions addressed by model outputs
+
+| Q | Question | Model output |
+|---|---|---|
+| Q1 | Duration effect on bias vs MSE? | Marginal effects of `window_len` from both surfaces |
+| Q2 | Seasonal profiles for bias and MSE? | Marginal effects of `day_start` at fixed durations |
+| Q3 | Duration × timing interaction? | Full 2D heatmaps for both surfaces, side by side |
+| Q3b | Where do bias and MSE surfaces diverge? | Variance fraction surface; difference map (MSE rank − bias rank) |
+| Q4 | Species-specific patterns? | Species-specific surfaces for both criteria |
+| Q5 | Environmental modulation? | `s_bio4` coefficients for bias vs MSE |
+| Q6 | Protocol evaluation? | Predictions at CORE, BUFFER, EOW on both surfaces |
+| Q7 | Optimal window by criterion? | Minimum-bias vs minimum-MSE timing per species/guild |
+| Q8 | Community recovery? | Richness and rank correlation models |
+
+---
+
+# Expected outcomes
+
+1. **Paired sensitivity surfaces** — bias and MSE — for each of c. 24 European mammal species and six functional guilds, revealing how accuracy and precision respond to window design.
+2. **Identification of divergence regions** where bias and MSE surfaces disagree, directly informing practitioners who care about precision (occupancy modelling) vs accuracy (standardised indices).
+3. **Quantitative evaluation** of Snapshot Europe CORE/BUFFER and EOW/ENETWILD protocols on both surfaces, providing dual-criterion protocol assessment.
+4. **Optimal window recommendations** per species and guild under both criteria at operationally relevant durations (30, 60, 90 days).
+5. Evidence on **environmental modulation**: BIO4 temperature seasonality as a predictor of bias amplitude and potentially of MSE.
+6. **Robustness assessment** using alternative benchmark durations (180d, 270d), confirming that results are not benchmark-dependent.
+7. Methodological contribution to **BIG_PICTURE WP7** (statistics) and **WP8** (data integration).
+
+---
+
+# Key analytical design choices
+
+| Choice | Rationale |
+|---|---|
+| Dual-target approach (bias + MSE) | Separates seasonal amplitude (bias) from estimation quality (MSE). MSE is the proper loss function for practical window design. Addresses the conflation between seasonal variation and estimation error. |
+| Sensitivity surface framing | Models response as continuous function of timing × duration; generalises to any window design |
+| Benchmark = FULL (365-day) | Treated as operational benchmark, not ground truth. Robustness confirmed with 180d and 270d centred benchmarks. |
+| Cyclic day-of-year spline | Ensures smooth wrapping from December to January |
+| Species-specific surfaces | Each species gets its own 2D surface; penalisation controls complexity for data-poor species |
+| Matched-camera approach | Deconfounds denominator and accumulation effects in detection rate |
+| Rarefaction for richness | Standardises richness across windows with different sampling intensities (Colwell et al. 2012) |
+
+---
+
+# Key references
+
+Colwell, R. K., Chao, A., Gotelli, N. J., Lin, S.-Y., Mao, C. X., Chazdon, R. L., & Longino, J. T. (2012). Models and estimators linking individual-based and sample-based rarefaction, extrapolation and comparison of assemblages. *Journal of Plant Ecology*, 5(1), 3–21.
+
+Hofmeester, T. R., Cromsigt, J. P. G. M., et al. (2019). Framing pictures: A conceptual framework to identify and correct for biases in detection probability of camera traps enabling multi-species comparison. *Ecology and Evolution*, 9(4), 2320–2336.
+
+Rowcliffe, J. M., Field, J., Turvey, S. T., & Carbone, C. (2008). Estimating animal density using camera traps without the need for individual recognition. *Journal of Applied Ecology*, 45(4), 1228–1236.
+
+Steenweg, R., Hebblewhite, M., Kays, R., et al. (2017). Scaling-up camera traps: monitoring the planet's biodiversity with networks of remote sensors. *Frontiers in Ecology and the Environment*, 15(1), 26–34.
+
+Wood, S. N. (2017). *Generalized Additive Models: An Introduction with R* (2nd ed.). Chapman and Hall/CRC.

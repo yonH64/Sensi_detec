@@ -1,0 +1,299 @@
+---
+title: "Seasonal variation in camera-trap detection: how timing, duration, and species identity shape detection estimates across European mammals"
+author: "Yon Halotel-Diez"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: flatly
+    highlight: tango
+    number_sections: true
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+---
+
+# Pager metadata
+
+| Field | Details |
+|---|---|
+| **Investigator** | Yon Halotel-Diez |
+| **Contact** | yon.halotel\@inn.no |
+| **Data gathering** | Fall 2025 -- Winter 2026 |
+| **Analysis** | Spring -- Summer 2026 |
+| **Writing** | Fall 2026 |
+| **Submission** | Winter 2026/2027 |
+| **Open science** | To be discussed with data owners and journal requirements; processed outputs + code will be shared where possible |
+
+---
+
+# Data
+
+## Data requirements
+
+Camera-trap datasets in **CamTrap DP format** (`deployments.csv` + `observations.csv`) spanning ≥ 12 months (multi-year allowed). Multiple European datasets from the Snapshot Europe network and affiliated projects.
+
+## Primary variables
+
+**Species-level detection metrics** computed per species × window × dataset-slice:
+
+- Daily detection rate λ (TTE model); independent event rate; matched-camera detection rate
+- Standard errors for each metric
+- Deviation from 12-month benchmark (for standardised-monitoring interpretation)
+
+**Community-level richness metrics** per window × dataset-slice:
+
+- Observed and rarefied richness, proportion of full-year species recovered, rank correlation of detection rates (ρ)
+
+## Potential covariates
+
+| Category | Variables |
+|---|---|
+| Window parameters | Start day-of-year, window duration (15–120 days) |
+| Protocol identity | CORE, BUFFER, EOW_EARLY, EOW_LATE |
+| Sampling effort | Trap-days, n_sites |
+| Species | Identity and functional guild (6 major guilds; 11 minor habitat; 12 minor diet) |
+| Environmental | Temperature seasonality (BIO4), latitude, trap-array extent |
+| Community | Species richness, mean detectability from FULL benchmark |
+
+---
+
+# Introduction
+
+Camera trapping has become an indispensable tool for wildlife research, conservation management and citizen-science programmes worldwide. Yet the choice of **when** and **for how long** to deploy cameras — the *sampling window* — remains surprisingly under-studied. This choice has profound consequences: detection rates of European mammals vary strongly across seasons, driven by species-specific behavioural cycles (ungulate rut, hibernation, breeding dispersal) and environmental factors (photoperiod, snow cover, vegetation phenology). A 60-day autumn window captures a fundamentally different detection landscape than a 60-day spring window — not because one is "wrong," but because the underlying biology differs.
+
+Despite this, large-scale camera-trap networks must standardise their temporal protocols. The **Snapshot Europe network** prescribes a fixed autumn window (CORE: 1 Sep–31 Oct, 61 days; BUFFER: 18 Aug–14 Nov, 89 days), EOW/ENETWILD specifies ≥ 60 days in summer/early autumn, and TEAM recommends 30-day dry-season deployments. These protocols were designed pragmatically rather than from a systematic understanding of how detection rates vary across the annual cycle.
+
+This study characterises *how much* and *in what direction* detection metrics vary as a continuous function of window timing and duration — a **seasonal detection variation surface**. Rather than treating deviation from a benchmark as inherently undesirable, we present the surface as a description of seasonal detection structure, and then interpret it through the lens of different practical applications:
+
+- **Standardised monitoring** (annual index estimation): deviation from annual mean matters.
+- **Occupancy modelling**: high detection probability matters — windows with elevated detection rates reduce false absences.
+- **Trend detection**: inter-annual consistency matters — a window that systematically overestimates is fine if it does so repeatably.
+- **Community comparisons**: rank preservation matters — if species rankings are stable across windows, comparative analyses are robust.
+
+We also address a fundamental question for practitioners who do not have the resources for year-round monitoring: **how long is long enough?** Because the 12-month benchmark itself fluctuates from year to year, the deviation of a sub-window eventually becomes indistinguishable from natural inter-annual variation. We quantify this **benchmark noise floor** for each species and use it to define a principled, species-specific stopping rule: the window duration beyond which extending the survey yields no meaningful gain in representativeness relative to what year-to-year ecological variation already introduces.
+
+This application-specific guidance and the benchmark noise floor criterion are the primary practical contributions.
+
+---
+
+# Research questions, objectives and hypotheses
+
+## Research questions
+
+1. How do species-level detection metrics vary across the annual cycle as a function of window timing and duration?
+2. Does the magnitude and direction of seasonal detection variation differ among species, functional guilds, and environmental contexts (latitude, temperature seasonality)?
+3. At what window duration does the deviation from the annual benchmark become indistinguishable from the benchmark's own inter-annual variability — and does this threshold differ among species?
+4. What are the practical consequences for different monitoring objectives (standardised indices, occupancy estimation, trend detection, community comparison)?
+5. Where do existing standardised protocols (Snapshot Europe CORE/BUFFER, EOW/ENETWILD) sit on the seasonal variation surface, and what are their strengths and limitations for each application?
+
+## Objectives
+
+1. Construct a **seasonal detection variation surface** mapping how detection metrics change as a function of window start day and duration, for multiple species-level and community-level metrics.
+2. Fit species-specific generalised additive mixed models (GAMMs) to quantify timing, duration, species identity, and environmental drivers of seasonal variation.
+3. Quantify the **inter-annual variability of the 12-month benchmark** (lambda_full) from multi-year datasets and derive a species-specific signal-to-noise ratio (SNR = |d_lambda| / SD_benchmark) to identify when deviation falls below benchmark noise.
+4. Provide **application-specific interpretation**: for each monitoring objective, identify which windows maximise performance and which introduce systematic bias.
+5. Evaluate named protocols as specific coordinates on the variation surface and quantify their suitability per application.
+6. Assess **robustness** of results to benchmark choice (180-day, 270-day, and 365-day reference windows).
+
+## Working hypotheses
+
+| Hypothesis | Statement |
+|---|---|
+| **H1 – Duration smoothing** | Longer sampling windows reduce seasonal detection variation through temporal averaging, with diminishing returns beyond c. 60–90 days. |
+| **H2 – Timing sensitivity** | Window timing interacts with duration: short windows are more sensitive to start date than long windows, and the timing effect is species-specific, driven by behavioural seasonality. |
+| **H3 – Species heterogeneity** | Species with stronger seasonal activity patterns (e.g., rutting ungulates, hibernating species) show greater detection variation and more pronounced timing effects. Species-specific surfaces outperform guild-level groupings. |
+| **H4 – Environmental modulation** | Temperature seasonality (BIO4) predicts the amplitude of seasonal detection variation: sites with more pronounced seasons exhibit more variable detection rates across windows. |
+| **H5 – Rank preservation** | Species detectability rankings are largely preserved across windows (high ρ), even when absolute detection rates vary substantially — implying that seasonal "bias" does not compromise comparative analyses. |
+| **H6 – Benchmark noise floor** | The benchmark noise floor depends on species detectability: rare or highly variable species have noisier benchmarks and reach the SNR = 1 threshold at shorter window durations. For most species, the noise floor is only reached at durations well beyond typical protocols (>90 days). |
+
+---
+
+# Analytical workflow
+
+## Data pipeline and window construction
+
+Multiple European camera-trap datasets stored as CamTrap DP archives (`deployments.csv` + `observations.csv`) are processed through an automated pipeline. Multi-year datasets are split into non-overlapping 12-month **"anchor" slices** using a scoring algorithm that maximises trapping effort and detection coverage; slices are treated as independent dataset-slices.
+
+Observations are filtered to a curated list of c. **61 European terrestrial mammals** across six major guilds (carnivores, ungulates, lagomorphs, rodents, insectivores, primates).
+
+A systematic grid of **c. 850 sampling windows** is constructed, varying by:
+
+- Start day-of-year (every 7 days, 53 positions)
+- Window length (15 to 120 days in 7-day steps, 16 durations)
+
+Four named protocol windows are added as specific coordinates:
+
+| Protocol | Dates | Duration |
+|---|---|---|
+| SNAP_EU_CORE | Sep 1 – Oct 31 | 61 d |
+| SNAP_EU_BUFFER | Aug 18 – Nov 14 | 89 d |
+| EOW_EARLY | Aug 2 – Sep 30 | 60 d |
+| EOW_LATE | Oct 1 – Nov 29 | 60 d |
+
+A **FULL 365-day** window serves as the primary benchmark. Additional centred benchmarks (180-day, 270-day) are computed for robustness assessment.
+
+## Metric computation
+
+### Species-level detection metrics
+*(per species × window × dataset-slice)*
+
+- **Daily detection rate (λ):** derived from a time-to-first-detection exponential hazard model with censoring. Effort-free and window-length-independent.
+- **Event rate:** total independent events / total trap-days (30-min independence gap per camera × species).
+- **Matched-camera detection rate:** `–log(1 – spatial_cov_m) / L`, where `spatial_cov_m` is coverage on cameras active in both sub-window and FULL period. Fully deconfounded for denominator and accumulation effects.
+- **Standard errors** for each metric (delta method for TTE; camera-level empirical SE for rate; derived SE for matched rate).
+
+### Community-level richness metrics
+*(per window × dataset-slice)*
+
+- Observed richness (`sr_obs`)
+- Incidence-based rarefied richness (`sr_raref`)
+- Proportion of FULL species detected (`prop_sr_full`)
+- Spearman rank correlation of species detection rates between window and FULL (`rho_lambda`)
+
+### Characterising seasonal variation
+
+For each metric, we compute two complementary quantities:
+
+- **Deviation from annual benchmark:** `d_X = X_window − X_FULL` — quantifies the direction and magnitude of the seasonal effect. Relevant primarily for standardised-monitoring interpretation.
+- **Raw metric value:** `X_window` itself — relevant for occupancy estimation (higher λ → more detections → better occupancy estimates) and as a direct measure of seasonal detection intensity.
+
+## Benchmark noise floor and signal-to-noise ratio
+
+A sub-window's deviation from the 12-month benchmark (d_lambda) is only informative if it exceeds the benchmark's own inter-annual variability. We quantify this **benchmark noise floor** to provide a principled stopping rule for window duration.
+
+### Rationale
+
+The 12-month benchmark lambda_full is not a fixed constant — it fluctuates between years due to genuine ecological variation (population dynamics, weather, etc.). Within a given year, the sub-window and the benchmark share the same ecological conditions, so within-year deviations are clean. But the *magnitude* of those deviations must be interpreted relative to the benchmark's own year-to-year noise: if a sub-window's deviation is smaller than what the benchmark would change by anyway from one year to the next, then extending the window further provides no meaningful gain in representativeness.
+
+### Computation
+
+1. **Inter-annual CV of lambda_full:** From the four multi-year sites (BE-Leuven, 5 years; NO-evenstadlia, 2; SI-serknica, 2; SP-donana, 4), we extract lambda_full for each species × site × year-slice and compute the coefficient of variation (CV = SD / mean) and the inter-annual standard deviation (SD_benchmark).
+
+2. **Signal-to-noise ratio (SNR):** For each species × site × window observation, we compute:
+
+    $$\text{SNR} = \frac{|d_\lambda|}{\text{SD}_{\text{benchmark}}}$$
+
+    where |d_lambda| is the absolute deviation of the sub-window from its year's benchmark, and SD_benchmark is the inter-annual SD of lambda_full at that site for that species.
+
+3. **Noise-floor duration threshold:** For each species × site, the SNR is examined as a function of window duration. The window duration at which SNR approaches 1 marks the point of diminishing returns: beyond this duration, the deviation is no larger than what year-to-year benchmark fluctuation would produce. This threshold is species-specific, reflecting both the species' seasonal amplitude and the stability of its year-round detectability.
+
+### Interpretation
+
+- **For species with low inter-annual variability** (e.g., stable populations at well-monitored sites): the noise floor is low, meaning even modest deviations at long windows remain meaningful. These species benefit from longer survey durations.
+- **For species with high inter-annual variability** (e.g., rare or behaviourally variable species): the noise floor is high, and deviations may fall below it at moderate durations (60–90 days). For these species, extending the window much beyond that is of limited value for approximating the annual detection rate.
+
+This framework converts the abstract question "how long should my cameras run?" into a quantitative, species-specific answer grounded in the natural variability of the system.
+
+## Inclusion thresholds
+
+A species × window combination is retained only if it meets:
+
+- ≥ 20 independent events
+- ≥ 5 positive occasions (days with detections)
+- ≥ 5 camera sites with detections
+
+All failed combinations are logged separately.
+
+## Statistical models
+
+All models are **GAMMs** fitted with `mgcv::bam()` using `method = "fREML"`, `discrete = TRUE`, and `nthreads = 4`.
+
+### Species-level models
+
+Eight model variants are compared. The best model (**M6**) uses species-specific 2D tensor product surfaces of `day_start × window_len`, with a cyclic spline for day-of-year and a thin-plate spline for duration.
+
+**Best model formula:**
+
+```r
+abs_d_metric ~ te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6), by = species_f) +
+               species_f +
+               s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+               s(ds_sp_f, bs = "re")
+```
+
+**Key design choices:**
+
+- `bs = "cc"` (cyclic spline) for `day_start` with knots at 0 and 365: c. 19% of windows cross the year boundary
+- `te()` tensor product: allows the timing × duration interaction to be non-separable
+- `by = species_f`: separate surface per species, with adaptive penalisation
+- `Gamma(link = "log")`: appropriate for strictly positive, right-skewed absolute deviations
+- Random effects `s(ds_sp_f, bs = "re")`: equivalent to `(1 | dataset:species)`
+
+### Benchmark noise floor analysis
+
+The noise-floor analysis is conducted separately from the GAMMs. It uses a descriptive, per-species approach rather than a model-based one:
+
+1. Compute inter-annual CV and SD of lambda_full per species × site from multi-year sliced datasets.
+2. For each observation in the sensitivity surface dataset, compute SNR by joining the relevant species × site SD.
+3. Summarise SNR as a function of window duration, per species and overall, to identify species-specific noise-floor thresholds.
+
+This analysis does not require model fitting; it is a direct comparison of observed deviations against observed benchmark variability.
+
+### Research questions addressed by model outputs
+
+| Q | Question | Model output | Application context |
+|---|---|---|---|
+| Q1 | Duration smoothing? | Marginal effect of `window_len` | All applications |
+| Q2 | Seasonal profile? | Marginal effect of `day_start` at fixed durations | Standardised monitoring, protocol design |
+| Q3 | Duration × timing interaction? | Full 2D tensor product heatmaps | Protocol design |
+| Q4 | Species-specific variation? | Species-specific surfaces by guild | All applications |
+| Q5 | Environmental modulation? | `s_bio4` coefficient | Network design |
+| Q6 | Protocol evaluation? | Predictions at CORE, BUFFER, EOW_EARLY, EOW_LATE | Protocol validation |
+| Q7 | Optimal window design? | Minimum-deviation timing per species/guild | Protocol design |
+| Q8 | Community recovery? | Richness and rank correlation models | Biodiversity assessment |
+| Q9 | Benchmark noise floor? | SNR per species × duration; noise-floor duration threshold | Duration recommendations |
+
+---
+
+# Expected outcomes
+
+1. A **seasonal detection variation surface** for each of c. 24 European mammal species and six functional guilds, characterising how detection metrics change across the annual cycle as a function of window timing and duration.
+2. A **benchmark noise floor** quantification per species from multi-year data, providing a principled stopping rule: the window duration at which deviation from the annual benchmark falls below inter-annual variability (SNR ≤ 1). This directly answers "how long is long enough?" for each species.
+3. **Application-specific guidance:**
+    - For standardised monitoring: identification of "neutral" windows that minimise deviation from annual means, with species-specific minimum-duration recommendations based on the noise floor.
+    - For occupancy modelling: identification of windows that maximise detection probability.
+    - For trend detection: evidence on inter-annual consistency (leveraging multi-year sliced datasets).
+    - For community comparisons: assessment of rank preservation (ρ) robustness across the surface.
+4. **Quantitative evaluation** of Snapshot Europe CORE/BUFFER and EOW/ENETWILD protocols as coordinates on the surface, with application-specific interpretation of their strengths and limitations.
+5. Evidence on **environmental modulation**: BIO4 temperature seasonality as the primary environmental driver of seasonal detection amplitude.
+6. **Robustness assessment** using alternative benchmark durations (180d, 270d), confirming that the seasonal variation structure is not an artifact of the 365-day benchmark choice.
+7. Methodological contribution to **BIG_PICTURE WP7** (statistics) and **WP8** (data integration).
+
+---
+
+# Key analytical design choices
+
+| Choice | Rationale |
+|---|---|
+| Seasonal variation framing | Characterises detection variation across the annual cycle as ecological structure, not error; provides application-specific interpretation |
+| Sensitivity surface approach | Models variation as continuous function of timing × duration; generalises to any window design |
+| Benchmark noise floor (SNR criterion) | Provides a principled, species-specific stopping rule for duration; converts "how long is long enough?" into a quantitative answer anchored in natural inter-annual variability |
+| Multiple benchmarks (365d, 270d, 180d) | Robustness check to confirm surface shape is benchmark-independent |
+| Cyclic day-of-year spline | Ensures smooth wrapping from December to January |
+| Species-specific surfaces | Each species gets its own 2D surface; penalisation controls complexity for data-poor species |
+| Matched-camera approach | Deconfounds denominator and accumulation effects in detection rate |
+| Rarefaction for richness | Standardises richness across windows with different sampling intensities (Colwell et al. 2012) |
+
+---
+
+# Key references
+
+Colwell, R. K., Chao, A., Gotelli, N. J., Lin, S.-Y., Mao, C. X., Chazdon, R. L., & Longino, J. T. (2012). Models and estimators linking individual-based and sample-based rarefaction, extrapolation and comparison of assemblages. *Journal of Plant Ecology*, 5(1), 3–21.
+
+Hofmeester, T. R., Cromsigt, J. P. G. M., et al. (2019). Framing pictures: A conceptual framework to identify and correct for biases in detection probability of camera traps enabling multi-species comparison. *Ecology and Evolution*, 9(4), 2320–2336.
+
+Rowcliffe, J. M., Field, J., Turvey, S. T., & Carbone, C. (2008). Estimating animal density using camera traps without the need for individual recognition. *Journal of Applied Ecology*, 45(4), 1228–1236.
+
+Steenweg, R., Hebblewhite, M., Kays, R., et al. (2017). Scaling-up camera traps: monitoring the planet's biodiversity with networks of remote sensors. *Frontiers in Ecology and the Environment*, 15(1), 26–34.
+
+Wood, S. N. (2017). *Generalized Additive Models: An Introduction with R* (2nd ed.). Chapman and Hall/CRC.
