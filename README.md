@@ -97,6 +97,21 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 
 ------------------------------------------------------------------------
 
+## Supplementary & Appendix Documents
+
+| Document | Description |
+|----------|-------------|
+| [`appendix_threshold_robustness.md`](appendix_threshold_robustness.md) | Sensitivity of results to species-inclusion thresholds (`min_events`, `min_sites_pos`, `min_occasions_pos`) |
+| [`appendix_benchmark_robustness.md`](appendix_benchmark_robustness.md) | Sensitivity of the surface shape to benchmark duration (180d, 270d, 365d) |
+| [`appendix_structural_confounds.md`](appendix_structural_confounds.md) | Three structural confounds identified in detection metrics and their resolutions |
+| [`appendix_model_comparison.md`](appendix_model_comparison.md) | Model selection: M1–M6 + guild variants (AIC comparison, surface structure rationale) |
+| [`appendix_rho_filter.md`](appendix_rho_filter.md) | Spearman's ρ boundary inflation and the ≥5 shared species filter |
+| [`methods_note_rho_filter.md`](methods_note_rho_filter.md) | Concise methods text for the ρ filter (for manuscript insertion) |
+| [`discussion_benchmark_and_framing.md`](discussion_benchmark_and_framing.md) | Discussion: benchmark interpretation and alternative research framings |
+| [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKFLOW.md) | Full analytical workflow documentation |
+
+------------------------------------------------------------------------
+
 ## Key Scripts
 
 | Script | Role |
@@ -119,4 +134,4 @@ Raw camera-trap datasets are not included in this repository. Model outputs (`.r
 
 ------------------------------------------------------------------------
 
-*Last updated: 17 March 2026*
+*Last updated: 18 March 2026*

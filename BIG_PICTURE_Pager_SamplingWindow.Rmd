@@ -166,7 +166,7 @@ All models are **GAMMs** fitted with `mgcv::bam()` using `method = "fREML"`, `di
 
 ### Species-level models
 
-Eight model variants were compared. The best model (**M6**) uses species-specific 2D tensor product surfaces of `day_start × window_len`, with a cyclic spline for day-of-year and a thin-plate spline for duration. M6 dominates over guild-level alternatives by ΔAIC ≈ 9,000, explaining **88.3% of deviance** for `abs_d_λ`.
+Eight model variants are compared. The best model (**M6**) uses species-specific 2D tensor product surfaces of `day_start × window_len`, with a cyclic spline for day-of-year and a thin-plate spline for duration.
 
 **Best model formula:**
 
@@ -188,18 +188,6 @@ abs_d_metric ~ te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6), by = s
 - `by = species_f`: separate surface per species, with adaptive penalisation
 - `Gamma(link = "log")`: appropriate for strictly positive, right-skewed absolute deviations
 - Random effects `s(ds_sp_f, bs = "re")`: equivalent to `(1 | dataset:species)`
-
-### Model performance summary
-
-| Metric | Model family | Deviance explained |
-|---|---|---|
-| `abs_d_λ` (TTE daily detection rate) | Gamma log | 88.3% |
-| `abs_d_matched_rate` | Gamma log | 86.4% |
-| `abs_d_rate` | Gamma log | 69.6% |
-| `d_rate` (signed) | Gaussian | 21.4% |
-| `prop_sr_full` | Beta-logit | 75.8% |
-| `d_sr_raref` | Gaussian | 32.7% |
-| `rho_lambda` | Beta-logit | 16.5% |
 
 ### Research questions addressed by model outputs
 
@@ -231,10 +219,10 @@ abs_d_metric ~ te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6), by = s
 
 | Choice | Rationale |
 |---|---|
-| Sensitivity surface framing | Models deviation as continuous function of timing × duration; uses all ~65,000 observations; generalises to any window design |
+| Sensitivity surface framing | Models deviation as continuous function of timing × duration; generalises to any window design |
 | Benchmark = FULL (365-day) | Treated as benchmark, not ground truth; all deviations are relative |
 | Cyclic day-of-year spline | Ensures smooth wrapping from December to January |
-| Species-specific surfaces | Each species gets its own 2D surface; outperforms guild-level by ΔAIC ≈ 9,000 |
+| Species-specific surfaces | Each species gets its own 2D surface; penalisation controls complexity for data-poor species |
 | Matched-camera approach | Deconfounds denominator and accumulation effects in detection rate |
 | Rarefaction for richness | Standardises richness across windows with different sampling intensities (Colwell et al. 2012) |
 

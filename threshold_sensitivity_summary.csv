@@ -1,0 +1,4 @@
+"threshold","min_events","n_species","n_rows","dev_expl","r_sq","AIC","surface_cor_vs_baseline","seasonal_60d_cor_vs_baseline"
+"Lenient (10)",10,28,149537,0.87,0.751,-1414148,0.9867,0.9969
+"Baseline (20)",20,26,123902,0.868,0.752,-1123832,1,1
+"Strict (30)",30,26,106902,0.863,0.752,-938637,0.9701,0.9828
