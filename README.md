@@ -1,6 +1,6 @@
 # Sensitivity of Camera-Trap Sampling Window Design on Detection Metrics
 
-How does the choice of temporal sampling window affect what camera traps tell us about wildlife? This project builds a **sensitivity surface** — a systematic map of how detection metric deviation from a 12-month benchmark varies as a function of window **timing** and **duration** — across 26 European camera-trap datasets (35 dataset-slices) and 26 mammal species. A benchmark noise floor analysis (inter-annual variability of the 12-month reference) provides a species-specific stopping rule for the diminishing-returns question: *how long is long enough?*
+How does the choice of temporal sampling window affect what camera traps tell us about wildlife? This project builds a **sensitivity surface** — a systematic map of how detection metric deviation from a 12-month benchmark varies as a function of window **timing** and **duration** — across 26 European camera-trap datasets (35 dataset-slices) and 29 mammal species. A benchmark noise floor analysis (inter-annual variability of the 12-month reference) provides a species-specific stopping rule for the diminishing-returns question: *how long is long enough?*
 
 ![Dataset locations](figures/dataset_map.png)
 
@@ -26,7 +26,7 @@ The main result: a 2D heatmap of predicted absolute deviation in daily detection
 
 ### Species-level variation
 
-Species identity dominates the surface (ΔAIC ≈ −10,600 over guild-level models). Six focal species illustrate the range:
+Species identity dominates the surface (ΔAIC ≈ −19,200 over guild-level models). Six focal species illustrate the range:
 
 ![Species-specific surfaces](figures/fig3_species_surfaces.png)
 
@@ -94,6 +94,7 @@ We tested the sensitivity of the main results to every analytical choice point �
 | **Response family** | Gamma vs Tweedie | Gamma, Tweedie (estimated *p* = 1.99) | 0.997 | — | Gamma validated |
 | **Random effects** | Flat vs nested (base-dataset + slice) | 254 levels vs 183 + 254 levels | 0.985 | — | Slice-level RE sufficient |
 | **BIO4 nonlinearity** | Linear vs smooth | Linear, s(bio4, k = 5) → edf = 1.00 | — | — | No nonlinear evidence |
+| **Rho filter cutoff** | Min shared species for rank correlation model | ≥3, ≥4, ≥5, ≥6, ≥8 | 0.911–0.953 | 19.0–55.3% | ≥5 balances boundary mass vs coverage |
 | **Benchmark duration** | Reference period for deviation computation | 180d, 270d, 365d | 0.879–0.998 (shape *r*) | — | Surface shape preserved |
 
 Across all checks, predicted surface correlations with the baseline exceed 0.92, and in most cases exceed 0.97. No analytical choice point changes the qualitative conclusions. Full details for each check are in the corresponding appendix documents.
@@ -128,6 +129,7 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 | [`appendix_anchor_sensitivity.md`](appendix_anchor_sensitivity.md) | Sensitivity to annual slice detection parameters (`find_anchors()`) |
 | [`appendix_independence_threshold_sensitivity.md`](appendix_independence_threshold_sensitivity.md) | Sensitivity to the independence gap for defining detection events (15, 30, 60 min) |
 | [`appendix_model_diagnostics.md`](appendix_model_diagnostics.md) | Model specification diagnostics: basis adequacy (k-doubling), Gamma vs Tweedie, nested random effects, nonlinear BIO4 |
+| [`appendix_rho_filter_sensitivity.md`](appendix_rho_filter_sensitivity.md) | Sensitivity of the rank correlation (ρ) model to the minimum shared species filter (≥3 to ≥8) |
 | [`appendix_benchmark_robustness.md`](appendix_benchmark_robustness.md) | Sensitivity of the surface shape to benchmark duration (180d, 270d, 365d) |
 
 ### Methods & analytical notes
