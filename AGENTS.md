@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-PhD project evaluating how camera-trap temporal sampling window design affects species detection metrics. Uses a **sensitivity surface approach**: a sliding window grid (16 durations × 53 start positions, stepped every 7 days across the full year) quantifies detection metric deviation from a 12-month benchmark as a function of window timing, duration, species identity, and environmental context. The Snapshot Europe CORE (61d, Sep 1–Oct 31) and BUFFER (89d, Aug 18–Nov 14) protocols are evaluated as specific points on this surface, not as the primary comparison. Models are fitted as GAMMs (`mgcv::bam()`) with cyclic splines for day-of-year circularity and species-specific 2D tensor product surfaces.
+PhD project evaluating how camera-trap temporal sampling window design affects species detection metrics. Uses a **sensitivity surface approach**: a sliding window grid (25 durations [15–183 days] × 53 start positions, stepped every 7 days across the full year) quantifies detection metric deviation from a 12-month benchmark as a function of window timing, duration, species identity, and environmental context. The Snapshot Europe CORE (61d, Sep 1–Oct 31) and BUFFER (89d, Aug 18–Nov 14) protocols are evaluated as specific points on this surface, not as the primary comparison. Models are fitted as GAMMs (`mgcv::bam()`) with cyclic splines for day-of-year circularity and species-specific 2D tensor product surfaces.
 
 ## Key Data Files
 
@@ -15,8 +15,8 @@ PhD project evaluating how camera-trap temporal sampling window design affects s
 | `dataset_metadata.csv` | Dataset-level metrics + environmental covariates + camera setup metadata. Written by `dataset_report.R`. |
 | `dataset_meta.xlsx` | (in Datasets/) Provider, country, camera setup metadata per dataset. Joined by `dataset_report.R`. |
 | `wrapped*.rds` (~8–9 MB each) | Intermediate outputs from `dataset_wrapper()`. |
-| `sensitivity_species_data.rds` | Prepared species-level modeling data for sensitivity surface analysis. 123,902 rows, 26 species × window × 35 datasets. |
-| `sensitivity_richness_data.rds` | Prepared richness-level modeling data. 29,680 rows (window × 35 datasets including sliced datasets). |
+| `sensitivity_species_data.rds` | Prepared species-level modeling data for sensitivity surface analysis. 222,748 rows, 29 species × window × 35 datasets. |
+| `sensitivity_richness_data.rds` | Prepared richness-level modeling data. 46,375 rows (window × 35 datasets including sliced datasets). |
 | `sensitivity_gam_models.rds` | All fitted GAM models via `mgcv::bam()`. Contains: 8 model comparison variants for lambda (M1–M6 + M_hab + M_diet), M6-structure detection models for 4 metrics, and 3 community models (richness, proportion, rank correlation). |
 | `sensitivity_models_env.RData` | Full R environment saved after model fitting. Contains `all_models`, `sens_species`, `sens_richness`, and `all_window_species`/`all_window_richness` (minus intermediate fitting objects). Loaded by `sensitivity_results.R` and `sensitivity_figures.R`. |
 | `interannual_cv_lambda_full.csv` | Inter-annual CV of lambda_full for 33 species × site combinations across 4 multi-year sites. Used to quantify benchmark noise floor. |
@@ -212,10 +212,12 @@ SNR = |d_lambda| / inter-annual SD(lambda_full). Benchmark noise is not a practi
 
 | Window length | Median SNR | % observations with SNR < 1 |
 |---------------|-----------|------------------------------|
-| 15 d | 86 | 0% |
-| 60 d | ~22 | 0.1% |
-| 90 d | ~13 | 0.6% |
-| 120 d | 8.1 | 2.3% |
+| 15 d | 90 | 0% |
+| 57 d | 25 | 0.03% |
+| 85 d | 14 | 0.5% |
+| 120 d | 8.2 | 2.3% |
+| 155 d | 5.0 | 7.9% |
+| 183 d | 3.4 | 13.7% |
 
 For the handful of high-CV species at specific sites (Alces alces at NO-evenstadlia, Sciurus vulgaris at SI-serknica), deviations at long windows (≥85 d) fall below benchmark noise for 10–16% of observations. For most species, the SNR = 1 threshold is not reached even at 120 d.
 
@@ -262,38 +264,39 @@ family = Gamma(link = "log")
 knots = list(day_start = c(0, 365))
 ```
 
-### Model comparison (lambda metric, 123,902 rows, 26 species)
+### Model comparison (lambda metric, 222,748 rows, 29 species)
 
 | Model | Structure | AIC | Dev. explained |
 |-------|-----------|-----|----------------|
-| M1 | Shared surface + covariates | -1,099,062 | 83.9% |
-| M2 | + guild-varying seasonality | -1,107,520 | 84.9% |
-| M3 | Full guild × surface | -1,108,433 | 85.0% |
-| M4 | + bio4 × duration | -1,100,257 | 84.0% |
-| M5 | Guild surface + bio4 × duration | -1,109,765 | 85.2% |
-| M_hab | Minor habitat guild surfaces (9 levels) | -1,110,209 | 85.2% |
-| M_diet | Minor diet guild surfaces (10 levels) | -1,113,208 | 85.6% |
-| **M6** | **Species-specific surfaces (26 species)** | **-1,123,832** | **86.8%** |
+| M1 | Shared surface + covariates | -2,217,140 | 84.6% |
+| M2 | + guild-varying seasonality | -2,230,664 | 85.4% |
+| M3 | Full guild × surface | -2,232,413 | 85.5% |
+| M4 | + bio4 × duration | -2,220,211 | 84.7% |
+| M5 | Guild surface + bio4 × duration | -2,235,716 | 85.7% |
+| M_hab | Minor habitat guild surfaces (9 levels) | -2,235,802 | 85.7% |
+| M_diet | Minor diet guild surfaces (10 levels) | -2,239,747 | 86.0% |
+| **M6** | **Species-specific surfaces (29 species)** | **-2,258,933** | **87.1%** |
 
-Species-specific surfaces (M6) dominate: ΔAIC ≈ -10,625 over the best guild model (M_diet). The penalization automatically regularises rare species.
+Species-specific surfaces (M6) dominate: ΔAIC ≈ -19,186 over the best guild model (M_diet). The penalization automatically regularises rare species.
 
 ### Performance across metrics (M6 structure)
 
 | Response | Family | N | Dev. explained |
 |----------|--------|---|----------------|
-| `abs_d_lambda` | Gamma(log) | 123,903 | 86.8% |
-| `abs_d_matched_rate` | Gamma(log) | 123,903 | 85.5% |
-| `abs_d_rate` | Gamma(log) | 123,903 | 66.4% |
-| `d_rate` (signed) | Gaussian | 123,903 | 19.9% |
-| `prop_sr_full` | Beta(logit) | 29,681 | 73.2% |
-| `d_sr_raref` | Gaussian | 29,681 | 23.4% |
-| `rho_lambda` | Beta(logit) | 12,028 | 40.4% |
+| `abs_d_lambda` | Gamma(log) | 222,749 | 87.1% |
+| `abs_d_matched_rate` | Gamma(log) | 222,749 | 86.9% |
+| `abs_d_rate` | Gamma(log) | 222,749 | 71.4% |
+| `d_rate` (signed) | Gaussian | 222,749 | 19.0% |
+| `prop_sr_full` | Beta(logit) | 46,376 | 77.3% |
+| `d_sr_raref` | Gaussian | 46,376 | 24.7% |
+| `rho_lambda` | Beta(logit) | 23,944 | 36.3% |
 
 ### Key design choices
 - **Cyclic spline** `bs = "cc"` for `day_start` with `knots = list(day_start = c(0, 365))`: handles year-wrapping windows (~19% of data).
 - **Tensor product** `te()`: allows the timing × duration interaction to be non-separable (short windows are more timing-sensitive than long ones).
-- **`by = species_f`**: separate surface per species. Penalization controls complexity: species with few observations get nearly flat surfaces.
+- **`by = species_f`**: separate surface per species (29 species). Penalization controls complexity: species with few observations get nearly flat surfaces.
 - **`discrete = TRUE, nthreads = 4`** in `bam()`: fast fitting for the species-level models.
+- **Window range**: 15–183 days (6 months) in 7-day steps, covering 25 duration levels. Extended from original 120-day cap to characterize the full plateau region.
 
 ### Richness models (dataset-level, shared surface)
 
@@ -324,7 +327,7 @@ family = gaussian()
 | `Q1_duration_effect.csv` | Mean/median/IQR predicted deviation by window_len × guild |
 | `Q2_seasonal_profiles.csv` | Mean deviation by day_start at fixed durations (15, 30, 60, 90, 120d) |
 | `Q3_surface_predictions.csv` | Full 2D surface predictions per metric × guild |
-| `Q4_species_guild_surfaces.csv` | Species-level deviation by window_len × season (26 species) |
+| `Q4_species_guild_surfaces.csv` | Species-level deviation by window_len × season (29 species) |
 | `Q5_bio4_effect.csv` | BIO4 parametric coefficients per metric |
 | `Q6_protocol_evaluation.csv` | Predicted deviation for 4 named protocols × guild × metric |
 | `Q7_optimal_timing.csv` | Best/worst timing per species at key durations |
@@ -346,6 +349,7 @@ family = gaussian()
 | `Fig8_model_comparison.pdf` | AIC ladder (M1–M6 + M_hab + M_diet) |
 | `figures/Fig9_benchmark_noise_floor.pdf` | 4-panel: CV by species, overall SNR, % below noise floor, species-specific SNR curves |
 | `figures/FigS1_robustness_benchmark.pdf` | Supplementary: 3-panel benchmark robustness check (shape correlations, deviation magnitude, seasonal profiles for 180d/270d/365d) |
+| `figures/residual_diagnostics_by_duration.pdf` | Residual diagnostics stratified by window duration bin (15–60d, 61–120d, 121–183d): residual vs fitted, QQ plots, density |
 
 ## Research Questions — OLD protocol comparison (superseded)
 
@@ -364,9 +368,9 @@ family = gaussian()
 
 ### Sensitivity surface findings (current)
 
-- **The sensitivity surface is dominated by species identity**: Species-specific 2D surfaces (M6) dramatically outperform guild-level (ΔAIC ≈ -10,625) and shared surfaces. Species with strong seasonal activity patterns (ungulate rut, hibernation) have much more pronounced surfaces than generalists.
+- **The sensitivity surface is dominated by species identity**: Species-specific 2D surfaces (M6) dramatically outperform guild-level (ΔAIC ≈ -19,186) and shared surfaces. Species with strong seasonal activity patterns (ungulate rut, hibernation) have much more pronounced surfaces than generalists.
 - **Ungulate autumn rut is the primary driver of high deviations**: Cervus elaphus and Sus scrofa show intense deviation spikes for windows centered on Sep–Nov, driven by rutting-season detection rate inflation. Capreolus capreolus shows both spring and autumn peaks. Vulpes vulpes and Lepus europaeus have near-flat surfaces.
-- **Duration effect is steep then plateauing**: Deviation drops ~80% from 15→60 days, then diminishes. Overall mean |d_lambda| goes from 0.021 (15d) → 0.004 (60d) → 0.002 (120d).
+- **Duration effect is steep then plateauing**: Deviation drops ~80% from 15→60 days, then diminishes. Overall mean |d_lambda| goes from 0.026 (15d) → 0.005 (60d) → 0.002 (120d) → 0.001 (183d).
 - **Short windows are most timing-sensitive**: A 15-day window on the rut captures a very different picture than in summer. Windows >75 days are relatively robust to timing choice.
 - **Temperature seasonality (BIO4) is significant** as a linear environmental predictor for most detection metrics (β ranges from −0.16 to −0.23 on the Gamma link scale, p < 0.007 for abs_d_rate and abs_d_matched_rate; p = 0.069 marginal for abs_d_lambda). Higher seasonality → smaller deviations after accounting for species and window design.
 - **Signed encounter rate deviation is bidirectional**: d_rate is ~59% positive / 41% negative. Summer/autumn windows overestimate encounter rate; winter/spring underestimate. d_lambda and d_matched_rate are ~99% and 95% positive respectively.
@@ -416,6 +420,10 @@ If `igraph` is loaded, its `crossing()` function masks `tidyr::crossing()`, caus
 ### rho_lambda model boundary inflation (FIXED 2026-03-12)
 
 The original rho_lambda community model included all non-NA observations, but ~33% of rho values were exactly 1 — artefactual perfect correlations from windows sharing only 3–4 species (Spearman's rho with 3 species has very few discrete possible values). This boundary mass violated beta regression assumptions. Filtering to windows with ≥5 shared species (currently N = 12,028 after dataset expansion) removed most artefactual boundary inflation (dev. explained = 40.4%). See `methods_note_rho_filter.md` for manuscript text.
+
+### `abs_d_rate` has 1 exact zero requiring offset (NOTED 2026-03-18)
+
+With the extended 183-day window range, 1 observation out of 222,748 has `abs_d_rate == 0`. A `pmax(..., 1e-10)` offset is applied before Gamma regression. This was not needed with the original 120-day range.
 
 ### SP-donana deployment end-dates corrected (FIXED 2026-03-17)
 

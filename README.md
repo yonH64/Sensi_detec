@@ -10,7 +10,7 @@ How does the choice of temporal sampling window affect what camera traps tell us
 
 Standardised camera-trap protocols like Snapshot Europe prescribe fixed temporal windows (e.g., 61 days starting September 1). But how sensitive are the resulting detection estimates to this specific choice? Rather than comparing two protocols, we ask: **how well does this short window approximate what year-round monitoring would give me?**
 
-We construct a sliding window grid (16 durations × 53 start positions, stepped weekly across the year) and model the resulting \~124,000 species × window × dataset observations using species-specific GAM surfaces.
+We construct a sliding window grid (25 durations [15–183 days] × 53 start positions, stepped weekly across the year) and model the resulting \~223,000 species × window × dataset observations using species-specific GAM surfaces.
 
 ------------------------------------------------------------------------
 
@@ -79,6 +79,25 @@ For most species, the noise floor is not reached even at 120 days — the sensit
 
 The sensitivity surface shape is **robust to benchmark choice**. Recomputing deviations against 180-day and 270-day centred benchmarks preserves the seasonal profile (shape correlation r > 0.88 for all window lengths vs 180d; r > 0.96 for short windows vs 270d). The autumn rut spike and the duration smoothing curve appear regardless of benchmark duration. See supplementary Fig S1 (`figures/FigS1_robustness_benchmark.pdf`).
 
+### Robustness summary
+
+We tested the sensitivity of the main results to every analytical choice point — data pipeline parameters, species-inclusion thresholds, and model specification — by varying each in turn and comparing the predicted surface shape against the baseline. The table below summarises all robustness checks.
+
+| Check | What was varied | Configurations tested | Surface *r* vs baseline | Dev. expl. range | Conclusion |
+|-------|-----------------|----------------------|-------------------------|-----------------|------------|
+| **Species thresholds** (individual) | min_events, min_sites, min_occasions | 7 variants across 3 thresholds | 0.925–1.000 | 85.8–87.0% | Robust; occasions threshold non-binding |
+| **Species thresholds** (joint) | All 3 thresholds simultaneously | Lenient (10/3/3), Baseline (20/5/5), Strict (30/10/5) | 0.970–1.000 | 87.1–87.2% | Robust; no interaction effects |
+| **Window-start resolution** | Step size between start positions | 3-day, 7-day, 14-day | 0.979–1.000 | 87.1% (all) | 7-day step adequate |
+| **Anchor detection** | Annual slice detection parameters (5 params) | Relaxed, Current, Strict | 0.980–1.000 | 87.0–87.1% | Relaxed = Current; strict drops 3 slices, minimal effect |
+| **Independence gap** | Minimum time between independent events | 15-min, 30-min, 60-min | 0.9998–1.000 | 87.1% (all) | Functionally identical |
+| **Basis dimension** | Tensor product k values | k = (8,6), k = (16,12) | 0.996 | 87.1–87.3% | Baseline adequate |
+| **Response family** | Gamma vs Tweedie | Gamma, Tweedie (estimated *p* = 1.99) | 0.997 | — | Gamma validated |
+| **Random effects** | Flat vs nested (base-dataset + slice) | 254 levels vs 183 + 254 levels | 0.985 | — | Slice-level RE sufficient |
+| **BIO4 nonlinearity** | Linear vs smooth | Linear, s(bio4, k = 5) → edf = 1.00 | — | — | No nonlinear evidence |
+| **Benchmark duration** | Reference period for deviation computation | 180d, 270d, 365d | 0.879–0.998 (shape *r*) | — | Surface shape preserved |
+
+Across all checks, predicted surface correlations with the baseline exceed 0.92, and in most cases exceed 0.97. No analytical choice point changes the qualitative conclusions. Full details for each check are in the corresponding appendix documents.
+
 ------------------------------------------------------------------------
 
 ## Methods Overview
@@ -91,7 +110,7 @@ The sensitivity surface shape is **robust to benchmark choice**. Recomputing dev
 | **Results extraction** | `sensitivity_results.R` | Derives Q1–Q9 outputs (duration effect, seasonal profiles, optimal timing, protocol evaluation, benchmark noise floor, etc.) |
 | **Figures** | `sensitivity_figures.R` | 9 main + 1 supplementary publication figures |
 
-The best model (M6) fits species-specific 2D surfaces over day-of-year (cyclic) × duration, with temperature seasonality (BIO4), effort controls, and dataset × species random effects. Gamma(log) family for absolute deviations. Deviance explained: **86.8%** for the primary metric (\|Δλ\|).
+The best model (M6) fits species-specific 2D surfaces over day-of-year (cyclic) × duration, with temperature seasonality (BIO4), effort controls, and dataset × species random effects. Gamma(log) family for absolute deviations. Deviance explained: **87.1%** for the primary metric (\|Δλ\|).
 
 Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKFLOW.md)
 
@@ -99,10 +118,22 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 
 ## Supplementary & Appendix Documents
 
+### Robustness & sensitivity checks
+
 | Document | Description |
 |----------|-------------|
-| [`appendix_threshold_robustness.md`](appendix_threshold_robustness.md) | Sensitivity of results to species-inclusion thresholds (`min_events`, `min_sites_pos`, `min_occasions_pos`) |
+| [`appendix_threshold_robustness.md`](appendix_threshold_robustness.md) | Sensitivity to individual species-inclusion thresholds (`min_events`, `min_sites_pos`, `min_occasions_pos`) |
+| [`appendix_joint_threshold_sensitivity.md`](appendix_joint_threshold_sensitivity.md) | Sensitivity to all three species-inclusion thresholds varied simultaneously |
+| [`appendix_resolution_sensitivity.md`](appendix_resolution_sensitivity.md) | Sensitivity to window-start step size (3-day, 7-day, 14-day) |
+| [`appendix_anchor_sensitivity.md`](appendix_anchor_sensitivity.md) | Sensitivity to annual slice detection parameters (`find_anchors()`) |
+| [`appendix_independence_threshold_sensitivity.md`](appendix_independence_threshold_sensitivity.md) | Sensitivity to the independence gap for defining detection events (15, 30, 60 min) |
+| [`appendix_model_diagnostics.md`](appendix_model_diagnostics.md) | Model specification diagnostics: basis adequacy (k-doubling), Gamma vs Tweedie, nested random effects, nonlinear BIO4 |
 | [`appendix_benchmark_robustness.md`](appendix_benchmark_robustness.md) | Sensitivity of the surface shape to benchmark duration (180d, 270d, 365d) |
+
+### Methods & analytical notes
+
+| Document | Description |
+|----------|-------------|
 | [`appendix_structural_confounds.md`](appendix_structural_confounds.md) | Three structural confounds identified in detection metrics and their resolutions |
 | [`appendix_model_comparison.md`](appendix_model_comparison.md) | Model selection: M1–M6 + guild variants (AIC comparison, surface structure rationale) |
 | [`appendix_rho_filter.md`](appendix_rho_filter.md) | Spearman's ρ boundary inflation and the ≥5 shared species filter |
@@ -130,8 +161,8 @@ Full analytical details: [`PAGER_ANALYTICAL_WORKFLOW.md`](PAGER_ANALYTICAL_WORKF
 
 Raw camera-trap datasets are not included in this repository. Model outputs (`.rds`, `.RData`) and generated results (`Q*.csv`, `Fig*.pdf`) are excluded via `.gitignore` but can be regenerated by running the pipeline.
 
-**Species**: 26 species passing data thresholds across ≥3 datasets (of 63 in the full taxonomy). **Datasets**: 26 camera-trap arrays across 10 European countries, yielding 35 dataset-slices after temporal splitting. **Observations**: 123,902 species × window × dataset rows for species-level models; \~30,000 for community-level models.
+**Species**: 29 species passing data thresholds across ≥3 datasets (of 63 in the full taxonomy). **Datasets**: 26 camera-trap arrays across 10 European countries, yielding 35 dataset-slices after temporal splitting. **Observations**: 222,748 species × window × dataset rows for species-level models; 46,375 for community-level models.
 
 ------------------------------------------------------------------------
 
-*Last updated: 18 March 2026*
+*Last updated: 19 March 2026*

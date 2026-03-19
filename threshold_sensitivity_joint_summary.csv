@@ -1,0 +1,5 @@
+"config","min_events","min_sites","min_occ","n_species","n_rows","dev_expl","surface_cor_vs_baseline"
+"Lenient (10/3/3)",10,3,3,30,276986,0.872,0.9759
+"Baseline (20/5/5)",20,5,5,26,222649,0.871,1
+"Strict (30/10/5)",30,10,5,24,183511,0.871,0.97
+"Reference pipeline",20,5,5,29,222748,0.871,NA

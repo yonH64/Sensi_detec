@@ -122,7 +122,7 @@ sp_levels <- levels(sens_species$species_f)
 
 focal_grid <- expand.grid(
   day_start  = seq(1, 358, by = 7),
-  window_len = c(15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 92, 99, 106, 113, 120),
+  window_len = seq(15, 183, by = 7),
   species_f  = factor(focal_species, levels = sp_levels),
   stringsAsFactors = FALSE
 ) |>

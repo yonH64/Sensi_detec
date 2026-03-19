@@ -1,0 +1,6 @@
+"covariate","transformation","center","scale","model_name"
+"bio4_temp_seasonality","(x - mean) / sd",649.13,99.89,"s_bio4"
+"latitude","(x - mean) / sd",49.2312,7.1755,"s_latitude"
+"log1p(trap_array)","(log1p(x) - mean) / sd",2.9951,0.6048,"s_trap_array"
+"log1p(trap_days_window)","log1p(x)",NA,NA,"l_trapdays"
+"log1p(n_sites)","log1p(x)",NA,NA,"l_nsites"

@@ -57,7 +57,7 @@ median_covs <- list(
 # Species-level grid (fine resolution)
 sp_grid <- expand.grid(
   day_start  = seq(1, 358, by = 7),
-  window_len = seq(15, 120, by = 1),
+  window_len = seq(15, 183, by = 1),
   species_f  = factor(species_levels, levels = species_levels),
   stringsAsFactors = FALSE
 ) |>
@@ -67,7 +67,7 @@ sp_grid <- expand.grid(
 # Dataset-level grid for richness models
 rich_grid_base <- expand.grid(
   day_start  = seq(1, 358, by = 7),
-  window_len = seq(15, 120, by = 1)
+  window_len = seq(15, 183, by = 1)
 ) |>
   as_tibble() |>
   mutate(
@@ -156,7 +156,7 @@ cat("  Saved Q1_duration_effect.csv\n")
 
 # Key insight: how much deviation drops from 15 → 60 → 120 days
 q1_overall |>
-  filter(window_len %in% c(15, 30, 60, 90, 120)) |>
+  filter(window_len %in% c(15, 30, 60, 90, 120, 150, 183)) |>
   mutate(across(c(mean_pred, median_pred), ~round(., 4))) |>
   print()
 cat("\n")
@@ -170,14 +170,14 @@ cat("\n")
 cat("── Q2: Seasonal profiles ──────────────────────────────────────\n")
 
 q2 <- preds_lambda |>
-  filter(window_len %in% c(15, 30, 60, 90, 120)) |>
+  filter(window_len %in% c(15, 30, 60, 90, 120, 150, 183)) |>
   summarise(
     mean_pred = mean(pred),
     .by = c(day_start, window_len, guild_major)
   )
 
 q2_overall <- preds_lambda |>
-  filter(window_len %in% c(15, 30, 60, 90, 120)) |>
+  filter(window_len %in% c(15, 30, 60, 90, 120, 150, 183)) |>
   summarise(mean_pred = mean(pred), .by = c(day_start, window_len)) |>
   mutate(guild_major = "All")
 
@@ -208,7 +208,7 @@ cat("── Q3: Full surface predictions ─────────────
 # Coarser grid for file size
 surf_grid <- expand.grid(
   day_start  = seq(1, 358, by = 7),
-  window_len = c(15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 92, 99, 106, 113, 120),
+  window_len = seq(15, 183, by = 7),
   species_f  = factor(species_levels, levels = species_levels),
   stringsAsFactors = FALSE
 ) |>
@@ -408,7 +408,7 @@ cat("  Saved Q6_protocol_evaluation.csv\n\n")
 cat("── Q7: Optimal window timing ──────────────────────────────────\n")
 
 q7 <- preds_sp |>
-  filter(window_len %in% c(15, 29, 64, 92, 120)) |>
+  filter(window_len %in% c(15, 29, 64, 92, 120, 155, 183)) |>
   summarise(
     best_day_start  = day_start[which.min(pred)],
     min_pred        = min(pred),
@@ -445,7 +445,7 @@ cat("── Q8: Richness & similarity surface ───────────�
 # Coarser grid for richness
 rich_grid_coarse <- expand.grid(
   day_start  = seq(1, 358, by = 7),
-  window_len = c(15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 92, 99, 106, 113, 120)
+  window_len = seq(15, 183, by = 7)
 ) |>
   as_tibble() |>
   mutate(
@@ -589,7 +589,7 @@ cat("  Saved Q9_noise_floor.csv\n")
 # Print key results
 cat("\n  --- SNR by window duration (overall) ---\n")
 snr_by_duration |>
-  filter(window_len %in% c(15, 29, 57, 85, 120)) |>
+  filter(window_len %in% c(15, 29, 57, 85, 120, 155, 183)) |>
   select(window_len, median_snr, pct_below_1, n_obs) |>
   mutate(median_snr = round(median_snr, 1),
          pct_below_1 = round(pct_below_1, 2)) |>

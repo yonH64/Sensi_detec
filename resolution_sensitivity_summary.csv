@@ -1,0 +1,4 @@
+"resolution","n_start_positions","n_rows","n_species","dev_expl","surface_cor_vs_7d"
+"3-day",122,512990,28,0.871,0.9793
+"7-day",53,222748,29,0.871,1
+"14-day",26,109298,29,0.871,0.997

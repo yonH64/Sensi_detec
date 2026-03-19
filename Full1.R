@@ -22,7 +22,7 @@ source("helpers.R")
 
 # Protocol windows (SNAP_EU_CORE, SNAP_EU_BUFFER, EOW_EARLY, EOW_LATE) are now included
 # by make_window_template() via protocol_windows() in helpers.R.
-window_grid <- make_window_template(step_doy = 7, lengths_d = seq(15, 120, by = 7))
+window_grid <- make_window_template(step_doy = 7, lengths_d = seq(15, 183, by = 7))
 
 # --------------------------------------------------------------------
 # compute_full_effort()
@@ -321,8 +321,8 @@ build_window_metrics_fast1 <- function(
     independence_mins = 30,
     occ_grain_days = 1,
     min_events = 20,          # Min events for reliable TTE rate estimation (~20-30 recommended)
-    min_occasions_pos = 3,    # Min temporal spread (reduced from 5 for TTE)
-    min_sites_pos = 10,       # Min cameras with detections for descriptive TTE metrics
+    min_occasions_pos = 5,    # Min temporal spread (aligned with dataset_wrapper1 defaults)
+    min_sites_pos = 5,        # Min cameras with detections (aligned with dataset_wrapper1 defaults)
     trap_array_km = NA_real_,
     latitude_deg  = NA_real_,
     drop_leap_day = TRUE,
