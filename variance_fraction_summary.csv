@@ -1,0 +1,4 @@
+"metric_label","median_vf","mean_vf","pct_below_15","pct_below_30","n"
+"TTE detection rate (lambda)",0.092,0.143,71.6,89.9,123902
+"Encounter rate",0.511,0.528,14.2,30.2,123902
+"Spatial coverage rate (matched)",0.099,0.154,68.5,88.8,123139

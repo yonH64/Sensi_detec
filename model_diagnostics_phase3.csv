@@ -1,5 +1,4 @@
-"diagnostic","baseline_AIC","variant_AIC","delta_AIC","baseline_dev_expl","variant_dev_expl","surface_correlation","notes"
-"A. k-doubling (8,6 → 16,12)",-2258933,-2260000,-1067,87.1,87.3,0.9957,"Marginal improvement; basis adequate"
-"B. Gamma vs Tweedie",-2258933,-2201963,NA,87.1,NA,0.9969,"Tweedie p=1.99 ≈ Gamma; AIC not comparable across families"
-"C. Nested RE (base_dataset × species)",-2258933,-2258938,-5,87.1,NA,0.9845,"Base-dataset RE SD=0.845 vs slice RE SD=0.350; negligible AIC change"
-"D. Smooth BIO4",-2258933,-2258933,0,87.1,NA,NA,"s(bio4) edf=1.00, collapsed to linear; no nonlinear evidence"
+check,baseline_dev_expl,variant_dev_expl,surface_r,notes
+k-doubling,86.96,87.16,0.995,ΔAIC = -968
+Gamma vs Tweedie,86.96,87.05,0.998,p = 1.990
+Nested RE,86.96,86.96,0.994,"base_ds SD=0.878, slice SD=0.338"

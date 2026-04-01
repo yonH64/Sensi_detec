@@ -6,23 +6,26 @@
 
 # ── Large model & data outputs (regenerable from scripts) ──
 *.rds
-sensitivity_models_env.RData
+*.RData
 
 # ── Generated results (regenerable from scripts) ───────────
-Q[0-9]_*.csv
-model_comparison_table.csv
-Fig[0-9]_*.pdf
-test_overview_*.pdf
-test_report_*.pdf
+Q*_*.csv
+loo_cv_predictions*.csv
 
-# ── Figures for README (tracked) ──────────────────────────
-!figures/*.png
+# ── Generated HTML (render from .md / .Rmd) ────────────────
+*.html
 
-# ── Cache (WorldClim rasters etc., regenerable) ────────────
-cache/
+# ── Word documents ─────────────────────────────────────────
+*.docx
+
+# ── Excluded files (superseded scripts, old figures, etc.) ─
+_exclude/
 
 # ── Archive (superseded files, not for version control) ────
 _archive/
+
+# ── Cache (WorldClim rasters etc., regenerable) ────────────
+cache/
 
 # ── Editor metadata ────────────────────────────────────────
 .positai/
@@ -30,3 +33,9 @@ _archive/
 # ── OneDrive conflict artifacts ────────────────────────────
 *conflicted copy*
 ~$*
+
+# ── Misc ───────────────────────────────────────────────────
+Rplots.pdf
+
+# ── Figures: track PNGs (README) and PDFs (publication) ────
+# All figures live in figures/; nothing at root level

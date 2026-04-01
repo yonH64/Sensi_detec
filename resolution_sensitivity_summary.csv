@@ -1,4 +1,4 @@
-"resolution","n_start_positions","n_rows","n_species","dev_expl","surface_cor_vs_7d"
-"3-day",122,512990,28,0.871,0.9793
-"7-day",53,222748,29,0.871,1
-"14-day",26,109298,29,0.871,0.997
+config,n_species,n_rows,dev_expl,r_sq_adj,surface_r
+3-day step,28,503678,86.91,0.7112,0.9787
+7-day step (baseline),29,218663,86.96,0.6859,1
+14-day step,29,111249,86.92,0.6979,0.9976

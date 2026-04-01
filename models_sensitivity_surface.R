@@ -63,8 +63,14 @@ fit_bam <- function(formula, data, family, knots = cc_knots, label = "") {
 # PART 1: MODEL COMPARISON — lambda only
 # ============================================================================
 # Fits M1–M6 for abs_d_lambda to justify the species-specific surface (M6).
-# All models include: s_bio4, l_trapdays, l_nsites, s_latitude, s_trap_array,
+# All models include: l_trapdays, l_nsites, s_latitude, s_trap_array,
 # and dataset×species random effects s(ds_sp_f, bs = "re").
+#
+# BIO4 (temperature seasonality) was dropped after LOO influence analysis showed
+# the coefficient was non-significant (p = 0.125), sign-flipped when BE-Leuven
+# was removed, and was collinear with latitude (r = 0.77). Latitude absorbs the
+# shared signal and is more stable across LOO iterations. Surface correlations
+# between with- and without-BIO4 models exceed 0.97 for all metrics.
 
 cat("── Part 1: Model comparison (abs_d_lambda) ──────────────────────\n")
 
@@ -74,7 +80,7 @@ fits_comparison <- list()
 fits_comparison$M1_base <- fit_bam(
   abs_d_lambda ~
     te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8)) +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+    l_trapdays + l_nsites + s_latitude + s_trap_array +
     s(species_f, bs = "re") +
     s(ds_sp_f, bs = "re"),
   data = sens_species, family = Gamma(link = "log"),
@@ -87,7 +93,7 @@ fits_comparison$M2_guild_season <- fit_bam(
     te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8)) +
     s(day_start, bs = "cc", by = guild_major, k = 12) +
     guild_major +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+    l_trapdays + l_nsites + s_latitude + s_trap_array +
     s(species_f, bs = "re") +
     s(ds_sp_f, bs = "re"),
   data = sens_species, family = Gamma(link = "log"),
@@ -100,38 +106,15 @@ fits_comparison$M3_guild_surface <- fit_bam(
     te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8),
        by = guild_major) +
     guild_major +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+    l_trapdays + l_nsites + s_latitude + s_trap_array +
     s(species_f, bs = "re") +
     s(ds_sp_f, bs = "re"),
   data = sens_species, family = Gamma(link = "log"),
   label = "M3: guild-specific surfaces"
 )
 
-# M4: Shared surface + bio4 × duration interaction
-fits_comparison$M4_env_x_dur <- fit_bam(
-  abs_d_lambda ~
-    te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8)) +
-    s(window_len, by = s_bio4, k = 8) +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
-    s(species_f, bs = "re") +
-    s(ds_sp_f, bs = "re"),
-  data = sens_species, family = Gamma(link = "log"),
-  label = "M4: + bio4 x duration"
-)
-
-# M5: Guild surface + bio4 × duration
-fits_comparison$M5_guild_env <- fit_bam(
-  abs_d_lambda ~
-    te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8),
-       by = guild_major) +
-    guild_major +
-    s(window_len, by = s_bio4, k = 8) +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
-    s(species_f, bs = "re") +
-    s(ds_sp_f, bs = "re"),
-  data = sens_species, family = Gamma(link = "log"),
-  label = "M5: guild surface + bio4 x dur"
-)
+# (M4 and M5, which tested bio4 × duration interactions, were removed along
+#  with BIO4 — see note at top of Part 1.)
 
 # M_hab: Minor guild (habitat) surfaces
 fits_comparison$M_hab <- fit_bam(
@@ -139,7 +122,7 @@ fits_comparison$M_hab <- fit_bam(
     te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6),
        by = guild_minor_habitat) +
     guild_minor_habitat +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+    l_trapdays + l_nsites + s_latitude + s_trap_array +
     s(species_f, bs = "re") +
     s(ds_sp_f, bs = "re"),
   data = sens_species, family = Gamma(link = "log"),
@@ -152,7 +135,7 @@ fits_comparison$M_diet <- fit_bam(
     te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6),
        by = guild_minor_diet) +
     guild_minor_diet +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+    l_trapdays + l_nsites + s_latitude + s_trap_array +
     s(species_f, bs = "re") +
     s(ds_sp_f, bs = "re"),
   data = sens_species, family = Gamma(link = "log"),
@@ -165,7 +148,7 @@ fits_comparison$M6_species <- fit_bam(
     te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6),
        by = species_f) +
     species_f +
-    s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+    l_trapdays + l_nsites + s_latitude + s_trap_array +
     s(ds_sp_f, bs = "re"),
   data = sens_species, family = Gamma(link = "log"),
   label = "M6: species-specific surfaces"
@@ -199,7 +182,7 @@ cat("── Part 2: Species-level detection models (M6) ────────
 m6_rhs <- ~ te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6),
                by = species_f) +
   species_f +
-  s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+  l_trapdays + l_nsites + s_latitude + s_trap_array +
   s(ds_sp_f, bs = "re")
 
 fits_detection <- list()
@@ -244,7 +227,7 @@ fits_community <- list()
 fits_community$d_sr_raref <- fit_bam(
   d_sr_raref ~
     te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8)) +
-    s_bio4 + l_trapdays + l_nsites + s_latitude +
+    l_trapdays + l_nsites + s_latitude +
     s(dataset_f, bs = "re"),
   data = sens_richness, family = gaussian(),
   label = "d_sr_raref (Gaussian)"
@@ -258,7 +241,7 @@ sens_rich_beta <- sens_richness |>
 fits_community$prop_sr_full <- fit_bam(
   prop_sr_adj ~
     te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8)) +
-    s_bio4 + l_trapdays + l_nsites + s_latitude +
+    l_trapdays + l_nsites + s_latitude +
     s(dataset_f, bs = "re"),
   data = sens_rich_beta, family = betar(link = "logit"),
   label = "prop_sr_full (Beta)"
@@ -277,7 +260,7 @@ sens_rich_rho <- sens_richness |>
 fits_community$rho_lambda <- fit_bam(
   rho_adj ~
     te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8)) +
-    s_bio4 + l_trapdays + l_nsites + s_latitude +
+    l_trapdays + l_nsites + s_latitude +
     s(dataset_f, bs = "re"),
   data = sens_rich_rho, family = betar(link = "logit"),
   label = "rho_lambda (Beta)"

@@ -34,13 +34,12 @@ Deviance explained is identical (87.1%) across all three thresholds. Surface cor
 
 | Covariate | 15-min | 30-min | 60-min |
 |-----------|--------|--------|--------|
-| Temperature seasonality | −0.140 | −0.147 | −0.159 |
 | Log trap-days | 0.818 | 0.819 | 0.819 |
 | Log n sites | −1.21 | −1.21 | −1.21 |
 | Latitude | −0.358 | −0.350 | −0.334 |
 | Trap array size | −0.146 | −0.150 | −0.155 |
 
-All coefficients retain the same sign and nearly identical magnitudes. The slight monotonic shift in a few coefficients (e.g., temperature seasonality becoming more negative with wider gaps) is consistent with the event-collapsing process slightly compressing rate variation across sites — but the effect is negligible.
+All coefficients retain the same sign and nearly identical magnitudes across all three independence gaps. The effect is negligible.
 
 ---
 

@@ -28,7 +28,7 @@ The lenient threshold gains two additional species. The strict threshold loses n
 | **Baseline (20)** | **86.8%** | **0.752** | **1.000** | **1.000** |
 | Strict (30) | 86.3% | 0.752 | 0.970 | 0.983 |
 
-Deviance explained varies by less than 1 percentage point. Predicted surface correlations are ≥ 0.970 in all comparisons. All five parametric covariates (temperature seasonality, log trap-days, log number of sites, latitude, trap array size) retain consistent signs and comparable magnitudes; no coefficient changes significance direction.
+Deviance explained varies by less than 1 percentage point. Predicted surface correlations are ≥ 0.970 in all comparisons. All four parametric covariates (log trap-days, log number of sites, latitude, trap array size) retain consistent signs and comparable magnitudes; no coefficient changes significance direction.
 
 **Fig. S2** shows duration curves and 60-day seasonal profiles for all three thresholds.
 
@@ -62,7 +62,6 @@ Deviance explained is virtually unchanged at threshold 10 and declines by only 1
 
 | Covariate | Baseline (5) | Strict (10) | Very strict (15) |
 |-----------|-------------|------------|-------------------|
-| Temperature seasonality | −0.160 (*p* = .069) | −0.157 (*p* = .075) | −0.163 (*p* = .061) |
 | Log trap-days | 0.728 | 0.782 | 0.796 |
 | Log n sites | −1.17 | −1.13 | −1.15 |
 | Latitude | −0.301 (*p* < .001) | −0.273 (*p* = .003) | −0.191 (*p* = .042) |

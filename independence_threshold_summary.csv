@@ -1,4 +1,4 @@
-"gap_minutes","label","n_rows","n_species","n_datasets","dev_expl","AIC","cor_vs_baseline"
-15,"15-min",223571,29,35,87.1,-2269125,0.9999
-30,"30-min (baseline)",222748,29,35,87.1,-2258933,1
-60,"60-min",221572,28,35,87.1,-2244052,0.9998
+config,n_species,n_rows,dev_expl,r_sq_adj,surface_r
+15-min,27,219447,86.97,0.686,1
+30-min (baseline),29,218663,86.96,0.6859,1
+60-min,26,217407,86.93,0.6861,0.9999

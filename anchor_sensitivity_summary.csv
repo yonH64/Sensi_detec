@@ -1,4 +1,4 @@
-"config","n_slices","n_datasets","n_species","n_rows","dev_expl","surface_cor_vs_current"
-"Relaxed (= Current)",34,26,NA,NA,NA,1
-"Current",34,26,29,222748,0.871,1
-"Strict",31,24,26,208455,0.87,0.9798
+config,n_species,n_rows,dev_expl,r_sq_adj,surface_r,note
+Relaxed,NA,NA,NA,NA,1,Identical to baseline
+Current (baseline),29,218663,86.96,0.6859,1,
+Strict,26,215047,87.16,0.6846,0.9829,

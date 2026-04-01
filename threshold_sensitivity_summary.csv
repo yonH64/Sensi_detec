@@ -1,4 +1,7 @@
-"threshold","min_events","n_species","n_rows","dev_expl","r_sq","AIC","surface_cor_vs_baseline","seasonal_60d_cor_vs_baseline"
-"Lenient (10)",10,28,149537,0.87,0.751,-1414148,0.9867,0.9969
-"Baseline (20)",20,26,123902,0.868,0.752,-1123832,1,1
-"Strict (30)",30,26,106902,0.863,0.752,-938637,0.9701,0.9828
+config,n_species,n_rows,dev_expl,r_sq_adj,surface_r
+min_events=10,26,218564,86.95,NA,1
+min_events=20 (baseline),29,218663,86.96,0.6859,1
+min_events=30,26,190783,86.68,NA,0.978
+min_sites=5 (baseline),29,218663,86.96,0.6859,1
+min_sites=10,25,194505,86.94,NA,0.98
+min_sites=15,24,160201,86.56,NA,0.962

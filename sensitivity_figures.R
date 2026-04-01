@@ -37,6 +37,15 @@ q3 <- read.csv("Q3_surface_predictions.csv")
 q4 <- read.csv("Q4_species_guild_surfaces.csv")
 q6 <- read.csv("Q6_protocol_evaluation.csv")
 q8 <- read.csv("Q8_richness_surface.csv")
+q9 <- read.csv("Q9_noise_floor.csv")
+cv_data     <- read.csv("interannual_cv_lambda_full.csv")
+rob_summary <- read.csv("robustness_benchmark_summary.csv")
+rob         <- readRDS("robustness_check_data.rds")
+
+# Figure generation runs inside local() — only the Q data frames and
+# model environment objects (all_models, sens_species, etc.) persist.
+# The local() block returns all figures as a named list -> .figs
+.figs <- local({
 
 guild_info <- sens_species |>
   distinct(species_f, guild_major, guild_minor_habitat, guild_minor_diet)
@@ -83,7 +92,7 @@ fig1 <- ggplot(fig1_data, aes(day_start, window_len, fill = mean_pred)) +
        y = "Window duration (days)") +
   theme(legend.position = "right")
 
-ggsave("Fig1_sensitivity_surface.pdf", fig1, width = 8, height = 5)
+ggsave("figures/Fig1_sensitivity_surface.pdf", fig1, width = 8, height = 5)
 
 
 # ============================================================================
@@ -104,7 +113,7 @@ fig2 <- ggplot(fig2_data, aes(day_start, window_len, fill = mean_pred)) +
   labs(x = "Window start", y = "Duration (days)") +
   theme(legend.position = "bottom")
 
-ggsave("Fig2_guild_surfaces.pdf", fig2, width = 10, height = 4)
+ggsave("figures/Fig2_guild_surfaces.pdf", fig2, width = 10, height = 4)
 
 
 # ============================================================================
@@ -128,7 +137,6 @@ focal_grid <- expand.grid(
 ) |>
   as_tibble() |>
   mutate(
-    s_bio4 = 0,
     l_trapdays = median(sens_species$l_trapdays),
     l_nsites = median(sens_species$l_nsites),
     s_latitude = 0,
@@ -139,17 +147,42 @@ focal_grid <- expand.grid(
 focal_grid$pred <- predict(mod_lambda, newdata = focal_grid, type = "response",
                            exclude = "s(ds_sp_f)")
 
-fig3 <- ggplot(focal_grid, aes(day_start, window_len, fill = pred)) +
+# Species-normalised colour (0 = own min, 1 = own max) + protocol markers
+focal_grid <- focal_grid |>
+  droplevels() |>
+  group_by(species_f) |>
+  mutate(pred_scaled = (pred - min(pred)) / (max(pred) - min(pred))) |>
+  ungroup()
+
+protocol_df <- tibble(
+  label      = c("CORE", "BUFFER", "EOW early", "EOW late"),
+  day_start  = c(244, 230, 214, 274),
+  window_len = c(61, 89, 60, 60)
+)
+
+proto_grid <- protocol_df |>
+  tidyr::crossing(species_f = factor(focal_species,
+                                     levels = levels(focal_grid$species_f)))
+
+fig3 <- ggplot(focal_grid, aes(day_start, window_len, fill = pred_scaled)) +
   geom_tile(width = 7, height = 7) +
+  geom_point(data = proto_grid,
+             aes(x = day_start, y = window_len, shape = label),
+             colour = "white", size = 2.5, stroke = 0.8, inherit.aes = FALSE) +
   scale_fill_viridis_c(option = "inferno", direction = -1,
-                       name = expression("|" * Delta * lambda * "|")) +
+                       name = "Relative\ndeviation") +
+  scale_shape_manual(values = c("CORE" = 16, "BUFFER" = 17,
+                                "EOW early" = 15, "EOW late" = 18),
+                     name = "Protocol") +
   scale_x_continuous(breaks = c(1, 91, 182, 274), labels = c("J", "A", "J", "O")) +
   facet_wrap(~species_f, nrow = 2) +
   labs(x = "Window start", y = "Duration (days)") +
+  theme_minimal() +
   theme(legend.position = "bottom",
-        strip.text = element_text(face = "italic"))
+        strip.text = element_text(face = "italic")) +
+  guides(fill = guide_colourbar(order = 1), shape = guide_legend(order = 2))
 
-ggsave("Fig3_species_surfaces.pdf", fig3, width = 10, height = 6)
+ggsave("figures/Fig3_species_surfaces.pdf", fig3, width = 10, height = 6)
 
 
 # ============================================================================
@@ -169,9 +202,20 @@ fig4_data <- q2 |>
       TRUE ~ "Winter (Jan-Mar)"
     )
   ) |>
-  summarise(mean_pred = mean(mean_pred), .by = c(window_len, season))
+  summarise(
+    mean_pred = mean(mean_pred),
+    q25 = mean(q25),
+    q75 = mean(q75),
+    ci_lo = mean(ci_lo),
+    ci_hi = mean(ci_hi),
+    .by = c(window_len, season)
+  )
 
-fig4 <- ggplot(fig4_data, aes(window_len, mean_pred, color = season)) +
+fig4 <- ggplot(fig4_data, aes(window_len, mean_pred, color = season, fill = season)) +
+  # IQR ribbon (species variation)
+  geom_ribbon(aes(ymin = q25, ymax = q75), alpha = 0.10, color = NA) +
+  # Posterior CI ribbon (estimation uncertainty)
+  geom_ribbon(aes(ymin = ci_lo, ymax = ci_hi), alpha = 0.18, color = NA) +
   geom_line(linewidth = 1) +
   # Mark SE protocol durations
   geom_vline(xintercept = 61, linetype = "dashed", alpha = 0.4) +
@@ -181,12 +225,15 @@ fig4 <- ggplot(fig4_data, aes(window_len, mean_pred, color = season)) +
   annotate("text", x = 91, y = max(fig4_data$mean_pred) * 0.85,
            label = "BUFFER\n(89d)", size = 2.5, hjust = 0) +
   scale_color_brewer(type = "qual", palette = "Set1") +
+  scale_fill_brewer(type = "qual", palette = "Set1", guide = "none") +
   labs(x = "Window duration (days)",
        y = expression("Mean predicted |" * Delta * lambda * "|"),
-       color = "Window\ncentered in") +
-  theme(legend.position = c(0.8, 0.75))
+       color = "Window\ncentered in",
+       caption = "Lighter ribbon: IQR across species; darker ribbon: 95% CI on species-averaged prediction") +
+  theme(legend.position = c(0.8, 0.75),
+        plot.caption = element_text(size = 8, color = "grey40", hjust = 0))
 
-ggsave("Fig4_duration_curves.pdf", fig4, width = 6, height = 4.5)
+ggsave("figures/Fig4_duration_curves.pdf", fig4, width = 6, height = 4.5)
 
 
 # ============================================================================
@@ -209,7 +256,7 @@ fig5 <- ggplot(fig5_data, aes(day_start, window_len, fill = mean_pred)) +
        y = "Window duration (days)") +
   theme(legend.position = "right")
 
-ggsave("Fig5_signed_rate_surface.pdf", fig5, width = 8, height = 5)
+ggsave("figures/Fig5_signed_rate_surface.pdf", fig5, width = 8, height = 5)
 
 
 # ============================================================================
@@ -254,7 +301,7 @@ fig6_sr <- q8_wide |>
 
 fig6 <- fig6_prop + fig6_rho + fig6_sr + plot_layout(nrow = 1)
 
-ggsave("Fig6_richness_surfaces.pdf", fig6, width = 12, height = 4)
+ggsave("figures/Fig6_richness_surfaces.pdf", fig6, width = 12, height = 4)
 
 
 # ============================================================================
@@ -263,10 +310,9 @@ ggsave("Fig6_richness_surfaces.pdf", fig6, width = 12, height = 4)
 
 cat("  Fig 7: Protocol evaluation...\n")
 
+# Q6 is now long format: protocol, guild_major, metric, mean_pred, q25, q75, ...
 q6_long <- q6 |>
-  pivot_longer(c(CORE, BUFFER, EOW_EARLY, EOW_LATE),
-               names_to = "protocol", values_to = "pred") |>
-  filter(guild_major != "Insectivore") |>
+  filter(guild_major != "Insectivore", guild_major != "All") |>
   mutate(
     protocol = factor(protocol, levels = c("EOW_EARLY", "CORE", "EOW_LATE", "BUFFER")),
     metric_label = case_when(
@@ -276,8 +322,12 @@ q6_long <- q6 |>
     )
   )
 
-fig7 <- ggplot(q6_long, aes(guild_major, pred, fill = protocol)) +
-  geom_col(position = "dodge") +
+fig7 <- ggplot(q6_long, aes(guild_major, mean_pred, fill = protocol)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.75) +
+  # IQR error bars (species variation within each guild × protocol)
+  geom_errorbar(aes(ymin = q25, ymax = q75),
+                position = position_dodge(width = 0.8), width = 0.25,
+                linewidth = 0.4) +
   facet_wrap(~metric_label, scales = "free_y") +
   scale_fill_manual(
     values = c(EOW_EARLY = "#ff7f0e", CORE = "#1f77b4",
@@ -293,7 +343,7 @@ fig7 <- ggplot(q6_long, aes(guild_major, pred, fill = protocol)) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1),
         legend.position = "top")
 
-ggsave("Fig7_protocol_evaluation.pdf", fig7, width = 10, height = 4.5)
+ggsave("figures/Fig7_protocol_evaluation.pdf", fig7, width = 11, height = 4.5)
 
 
 # ============================================================================
@@ -314,7 +364,7 @@ fig8 <- ggplot(comp_tbl, aes(model, delta_AIC)) +
        title = "Model comparison for |d_lambda|") +
   theme(plot.title = element_text(size = 11))
 
-ggsave("Fig8_model_comparison.pdf", fig8, width = 7, height = 4)
+ggsave("figures/Fig8_model_comparison.pdf", fig8, width = 7, height = 4)
 
 
 
@@ -328,8 +378,7 @@ ggsave("Fig8_model_comparison.pdf", fig8, width = 7, height = 4)
 
 cat("  Fig 9: Benchmark noise floor...\n")
 
-q9 <- read.csv("Q9_noise_floor.csv")
-cv_data <- read.csv("interannual_cv_lambda_full.csv")
+
 
 # --- Panel A: CV by species ---
 fig9a <- cv_data |>
@@ -422,9 +471,6 @@ ggsave("figures/Fig9_benchmark_noise_floor.pdf", fig9, width = 14, height = 10)
 
 cat("  Fig S1: Benchmark robustness check...\n")
 
-rob_summary <- read.csv("robustness_benchmark_summary.csv")
-rob         <- readRDS("robustness_check_data.rds")
-
 # --- Panel A: Shape correlations by window duration ---
 corr_data <- rob_summary |>
   filter(!is.na(shape_r_365_180)) |>
@@ -510,3 +556,25 @@ ggsave("figures/FigS1_robustness_benchmark.pdf", figS1, width = 12, height = 9)
 
 
 cat("\n=== All figures saved as PDF ===\n")
+
+# Return all figures as a named list
+list(fig1 = fig1, fig2 = fig2, fig3 = fig3, fig4 = fig4,
+     fig5 = fig5, fig6 = fig6, fig7 = fig7, fig8 = fig8,
+     fig9 = fig9, figS1 = figS1)
+
+}) # end local()
+
+# ── Display helper ───────────────────────────────────────────────────────────
+
+show_fig <- function(id) {
+  key <- paste0("fig", id)
+  if (!key %in% names(.figs)) {
+    stop("Unknown figure: ", id,
+         ". Available: ", paste(gsub("^fig", "", names(.figs)), collapse = ", "),
+         call. = FALSE)
+  }
+  .figs[[key]]
+}
+# Usage:
+show_fig(1)
+show_fig("S1")

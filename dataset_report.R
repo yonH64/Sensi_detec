@@ -3,13 +3,17 @@
 # ====================================================================
 # Replaces:  dataset_overview_v2.R, dataset-slices_overview.R
 #
-# Single function `dataset_report()` that:
-#   1. Loads deployments & observations
-#   2. Finds 12-month anchor slices (or uses pre-computed ones)
-#   3. Extracts WorldClim + MODIS + derived environmental covariates
-#   4. Joins dataset_meta.xlsx (provider, country, camera setup)
-#   5. Returns a single-row metrics tibble (caller accumulates)
-#   6. Produces one comprehensive PDF:
+# Three entry points:
+#
+#   .prepare_dataset()  — internal workhorse (steps 1-4)
+#     1. Loads deployments & observations
+#     2. Finds 12-month anchor slices (or uses pre-computed ones)
+#     3. Joins dataset_meta.xlsx (provider, country, camera setup)
+#     4. Returns a list with single-row metrics tibble + intermediate objects
+#
+#   dataset_metrics()   — public: runs steps 1-4 and returns the metrics row
+#
+#   dataset_report()    — public: runs steps 1-4 then produces a PDF:
 #        Page 1    — Dashboard: metrics + station map + effort sparkline
 #        Page 2    — Effort timeline + anchor table + protocol effort table
 #        Page 3    — Species × month heatmap with protocol window markers
@@ -30,32 +34,16 @@ suppressPackageStartupMessages({
   library(geosphere)
   library(gridExtra)
   library(readxl)
+  library(furrr)
 })
 
-source(file.path(dirname(rstudioapi::getSourceEditorContext()$path), "helpers.R"))
+.helpers_path <- normalizePath(
+  file.path(dirname(rstudioapi::getSourceEditorContext()$path), "helpers.R")
+)
+source(.helpers_path)
 
 # ── private cache ──────────────────────────────────────────────────
 .report_cache <- new.env(parent = emptyenv())
-
-# ── colour palette ─────────────────────────────────────────────────
-pal <- list(
-  accent       = "#2166ac",
-  accent2      = "#b2182b",
-  anchor_fill  = alpha("#2166ac", 0.12),
-  anchor_border = alpha("#2166ac", 0.40),
-  core_fill    = alpha("#d6604d", 0.15),
-  core_border  = "#d6604d",
-  buffer_fill  = alpha("#4393c3", 0.10),
-  buffer_border = "#4393c3",
-  eow_e_fill   = alpha("#5aae61", 0.12),
-  eow_e_border = "#5aae61",
-  eow_l_fill   = alpha("#984ea3", 0.12),
-  eow_l_border = "#984ea3",
-  station      = "#d73027",
-  effort       = "grey30",
-  bg           = "grey98",
-  grid         = "grey90"
-)
 
 # daily_deployment_effort_fast() is defined in helpers.R — no local copy needed.
 
@@ -74,103 +62,6 @@ get_world_sf <- function() {
 # protocol_calendar_dates() is defined in helpers.R — returns all protocol
 # windows (SNAP_EU_CORE, SNAP_EU_BUFFER, EOW_EARLY, EOW_LATE) for a given anchor period.
 
-
-# ====================================================================
-# ENVIRONMENTAL COVARIATE EXTRACTION
-# ====================================================================
-
-extract_env_covariates <- function(lon, lat, cache_dir = "cache/worldclim") {
-  # Returns a single-row tibble with environmental covariates.
-  # Gracefully returns NAs if packages are missing or downloads fail.
-
-  out <- tibble(
-    bio1_mean_temp          = NA_real_,
-    bio4_temp_seasonality   = NA_real_,
-    bio5_tmax_warmest       = NA_real_,
-    bio6_tmin_coldest       = NA_real_,
-    bio12_annual_precip     = NA_real_,
-    bio15_precip_seasonality = NA_real_,
-    ndvi_amplitude          = NA_real_,
-    ndvi_cv                 = NA_real_,
-    daylength_range_hr      = NA_real_
-  )
-
-  if (!is.finite(lon) || !is.finite(lat)) return(out)
-
-  # ── Day length range (no external data needed) ──────────────────
-  # Longest day (summer solstice ~June 21, DOY 172) minus shortest (winter solstice ~Dec 21, DOY 355)
-  dl_summer <- geosphere::daylength(lat, 172)
-  dl_winter <- geosphere::daylength(lat, 355)
-  out$daylength_range_hr <- abs(dl_summer - dl_winter)
-
-  # ── WorldClim bioclimatic variables ─────────────────────────────
-  if (requireNamespace("geodata", quietly = TRUE) &&
-      requireNamespace("terra", quietly = TRUE)) {
-    tryCatch({
-      dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
-      # Download WorldClim bioclim at 2.5 arc-min (~4.5 km) resolution
-      # geodata caches tiles automatically in cache_dir
-      bio <- geodata::worldclim_global(var = "bio", res = 2.5, path = cache_dir)
-      pt <- terra::vect(matrix(c(lon, lat), ncol = 2), crs = "EPSG:4326")
-      vals <- terra::extract(bio, pt)
-
-      # WorldClim layer naming: wc2.1_2.5m_bio_1, ..._2, etc.
-      # extract() returns columns in order bio1..bio19
-      bio_names <- names(vals)
-      # Find columns by pattern
-      get_bio <- function(n) {
-        col <- grep(paste0("_", n, "$|bio_", n, "$|bio", n, "$"),
-                    bio_names, value = TRUE)
-        if (length(col) == 1) as.numeric(vals[[col]]) else NA_real_
-      }
-
-      out$bio1_mean_temp          <- get_bio(1)
-      out$bio4_temp_seasonality   <- get_bio(4)
-      out$bio5_tmax_warmest       <- get_bio(5)
-      out$bio6_tmin_coldest       <- get_bio(6)
-      out$bio12_annual_precip     <- get_bio(12)
-      out$bio15_precip_seasonality <- get_bio(15)
-    }, error = function(e) {
-      message("WorldClim extraction failed for (", round(lon, 2), ", ",
-              round(lat, 2), "): ", conditionMessage(e))
-    })
-  } else {
-    message("Install `geodata` for WorldClim extraction: install.packages('geodata')")
-  }
-
-  # ── MODIS NDVI seasonality ──────────────────────────────────────
-  if (requireNamespace("MODISTools", quietly = TRUE)) {
-    tryCatch({
-      # MOD13Q1: 250m, 16-day NDVI. Request 1 year of data.
-      ndvi_raw <- MODISTools::mt_subset(
-        product   = "MOD13Q1",
-        lat       = lat,
-        lon       = lon,
-        band      = "250m_16_days_NDVI",
-        start     = "2022-01-01",
-        end       = "2022-12-31",
-        km_lr     = 0,
-        km_ab     = 0,
-        site_name = "centroid",
-        progress  = FALSE
-      )
-      ndvi_vals <- as.numeric(ndvi_raw$value) * as.numeric(ndvi_raw$scale)
-      ndvi_vals <- ndvi_vals[is.finite(ndvi_vals) & ndvi_vals > -0.2]
-
-      if (length(ndvi_vals) >= 4) {
-        out$ndvi_amplitude <- max(ndvi_vals) - min(ndvi_vals)
-        out$ndvi_cv        <- sd(ndvi_vals) / mean(ndvi_vals)
-      }
-    }, error = function(e) {
-      message("MODIS NDVI extraction failed for (", round(lon, 2), ", ",
-              round(lat, 2), "): ", conditionMessage(e))
-    })
-  } else {
-    message("Install `MODISTools` for NDVI extraction: install.packages('MODISTools')")
-  }
-
-  out
-}
 
 
 # ====================================================================
@@ -196,16 +87,14 @@ read_dataset_meta <- function(
 
 
 # ====================================================================
-# MAIN FUNCTION
+# INTERNAL: data loading + metrics computation (steps 1-5)
 # ====================================================================
-dataset_report <- function(
+.prepare_dataset <- function(
     dataset_name,
     keep_species    = spp_keep,
     anchors_tbl     = NULL,
     dataset_meta    = NULL,
-    extract_env     = TRUE,
-    root            = "C:/Users/yonah/OneDrive - Universitetet i Innlandet/Dokumenter/PhD/Sensitivity of detection/Datasets",
-    output_pdf      = NULL
+    root            = "C:/Users/yonah/OneDrive - Universitetet i Innlandet/Dokumenter/PhD/Sensitivity of detection/Datasets"
 ) {
 
   stopifnot(is.character(keep_species), length(keep_species) > 0)
@@ -309,18 +198,69 @@ dataset_report <- function(
 
   n_locations <- n_distinct(deploy[[loc_col]])
 
-  if (n_locations >= 2) {
-    dmat <- geosphere::distm(loc_coords[, c("lon", "lat")],
+  # Deduplicate to unique physical locations — datasets with rotating
+  # deployments (e.g. BE-Leuven) assign many locationIDs to the same
+  # coordinates; spatial metrics should reflect physical locations only.
+  unique_coords <- loc_coords |> distinct(lat, lon)
+  n_locations_unique <- nrow(unique_coords)
+
+  # Map each locationID to its unique-coordinate row index
+  loc_coords$uc_idx <- match(
+    paste(loc_coords$lat, loc_coords$lon),
+    paste(unique_coords$lat, unique_coords$lon)
+  )
+
+  if (n_locations_unique >= 2) {
+    dmat <- geosphere::distm(unique_coords[, c("lon", "lat")],
                              fun = geosphere::distHaversine) / 1000
     trap_array_km <- max(dmat)
     diag(dmat) <- NA_real_
     median_nn_km <- median(apply(dmat, 1, min, na.rm = TRUE))
-    cen <- geosphere::centroid(loc_coords[, c("lon", "lat")])
+    cen <- geosphere::centroid(unique_coords[, c("lon", "lat")])
     centroid_lon <- cen[1]; centroid_lat <- cen[2]
+
+    # Mean nearest-neighbour distance among simultaneously active cameras.
+    # Uses NN (not mean pairwise) so clustered designs get their within-
+    # cluster spacing, not the between-cluster spread.
+    dep_loc <- deploy |>
+      transmute(
+        location_id = .data[[loc_col]],
+        dep_start   = as_date(parse_ts_safe(.data[[start_col]])),
+        dep_end     = as_date(parse_ts_safe(.data[[end_col]]))
+      ) |>
+      filter(!is.na(dep_start), !is.na(dep_end), dep_end > dep_start,
+             location_id %in% loc_coords$location_id)
+
+    all_days <- seq.Date(start_date, end_date, by = "day")
+    n_days   <- length(all_days)
+    n_uc     <- n_locations_unique
+
+    # Activity matrix: unique coordinates × days
+    # A physical location is active if ANY of its locationIDs are active.
+    active_mat <- matrix(FALSE, nrow = n_uc, ncol = n_days)
+    for (.r in seq_len(nrow(dep_loc))) {
+      loc_idx <- loc_coords$uc_idx[match(dep_loc$location_id[.r],
+                                         loc_coords$location_id)]
+      if (is.na(loc_idx)) next
+      d1 <- max(1L, as.integer(dep_loc$dep_start[.r] - start_date) + 1L)
+      d2 <- min(n_days, as.integer(dep_loc$dep_end[.r] - start_date) + 1L)
+      if (d1 <= d2) active_mat[loc_idx, d1:d2] <- TRUE
+    }
+
+    daily_mean_nn <- vapply(seq_len(n_days), function(d) {
+      idx <- which(active_mat[, d])
+      if (length(idx) < 2L) return(NA_real_)
+      sub <- dmat[idx, idx, drop = FALSE]
+      mean(apply(sub, 1, min, na.rm = TRUE))
+    }, numeric(1))
+
+    mean_cam_dist_km <- mean(daily_mean_nn, na.rm = TRUE)
+    if (!is.finite(mean_cam_dist_km)) mean_cam_dist_km <- NA_real_
+
   } else {
-    trap_array_km <- median_nn_km <- NA_real_
-    centroid_lat <- if (n_locations == 1) loc_coords$lat[1] else NA_real_
-    centroid_lon <- if (n_locations == 1) loc_coords$lon[1] else NA_real_
+    trap_array_km <- median_nn_km <- mean_cam_dist_km <- NA_real_
+    centroid_lat <- if (n_locations_unique == 1) unique_coords$lat[1] else NA_real_
+    centroid_lon <- if (n_locations_unique == 1) unique_coords$lon[1] else NA_real_
   }
 
   # ── observation counts ──────────────────────────────────────────
@@ -356,19 +296,6 @@ dataset_report <- function(
     }
   }
 
-  # ── environmental covariates ────────────────────────────────────
-  if (isTRUE(extract_env)) {
-    env_covs <- extract_env_covariates(centroid_lon, centroid_lat)
-  } else {
-    env_covs <- tibble(
-      bio1_mean_temp = NA_real_, bio4_temp_seasonality = NA_real_,
-      bio5_tmax_warmest = NA_real_, bio6_tmin_coldest = NA_real_,
-      bio12_annual_precip = NA_real_, bio15_precip_seasonality = NA_real_,
-      ndvi_amplitude = NA_real_, ndvi_cv = NA_real_,
-      daylength_range_hr = NA_real_
-    )
-  }
-
   # ── dataset metadata join ───────────────────────────────────────
   if (is.null(dataset_meta)) dataset_meta <- read_dataset_meta()
   meta_cols <- tibble(
@@ -387,20 +314,22 @@ dataset_report <- function(
     }
   }
 
-  # ── build metrics row ──────────────────────────────────────────
+  # ── build metrics row (no climate variables — those live in env_covs
+  #    and are shown in the PDF dashboard but not exported to the table) ──
   metrics_row <- bind_cols(
     tibble(
       dataset_name              = dataset_name,
       start_date                = start_date,
       end_date                  = end_date,
       duration_days             = duration_days,
-      stations                  = n_locations,
+      stations                  = n_locations_unique,
       mean_active_deployments   = mean_active,
       temporal_coverage_pct     = temporal_coverage_pct,
       longest_zero_effort_gap_days = as.integer(longest_gap),
       trap_days_total           = trap_days_total,
       array_diameter_km         = trap_array_km,
       median_nn_dist_km         = median_nn_km,
+      mean_active_cam_dist_km   = mean_cam_dist_km,
       centroid_lat              = centroid_lat,
       centroid_lon              = centroid_lon,
       n_obs_all                 = n_obs_all,
@@ -412,10 +341,103 @@ dataset_report <- function(
       n_dep_no_coords           = n_dep_no_coords,
       n_dep_bad_dates           = n_dep_bad_dates
     ),
-    env_covs,
     meta_cols
   )
 
+  list(
+    metrics_row     = metrics_row,
+    dataset_name    = dataset_name,
+    archive_path    = archive_path,
+    deploy          = deploy,
+    obs_ts          = obs_ts,
+    obs_span        = obs_span,
+    daily_dep       = daily_dep,
+    daily_dep_full  = daily_dep_full,
+    loc_coords      = loc_coords,
+    ds_anchors      = ds_anchors,
+    meta_cols       = meta_cols,
+    keep_species    = keep_species,
+    start_date      = start_date,
+    end_date        = end_date,
+    duration_days   = duration_days,
+    duration_years  = duration_years,
+    n_locations        = n_locations,
+    n_locations_unique = n_locations_unique,
+    mean_active        = mean_active,
+    temporal_coverage_pct = temporal_coverage_pct,
+    longest_gap     = longest_gap,
+    trap_days_total = trap_days_total,
+    trap_array_km   = trap_array_km,
+    median_nn_km    = median_nn_km,
+    mean_cam_dist_km = mean_cam_dist_km,
+    centroid_lat    = centroid_lat,
+    centroid_lon    = centroid_lon,
+    n_obs_all       = n_obs_all,
+    n_spp_all       = n_spp_all,
+    n_obs_filt      = n_obs_filt,
+    n_spp_filt      = n_spp_filt,
+    n_obs_no_ts     = n_obs_no_ts,
+    n_dep_no_coords = n_dep_no_coords,
+    n_dep_bad_dates = n_dep_bad_dates,
+    loc_col         = loc_col,
+    depl_id_deploy  = depl_id_deploy,
+    start_col       = start_col,
+    end_col         = end_col,
+    lat_col         = lat_col,
+    lon_col         = lon_col
+  )
+}
+
+
+# ====================================================================
+# PUBLIC: metrics only (no PDF)
+# ====================================================================
+dataset_metrics <- function(
+    dataset_name,
+    keep_species    = spp_keep,
+    anchors_tbl     = NULL,
+    dataset_meta    = NULL,
+    root            = "C:/Users/yonah/OneDrive - Universitetet i Innlandet/Dokumenter/PhD/Sensitivity of detection/Datasets"
+) {
+  .prepare_dataset(dataset_name, keep_species, anchors_tbl,
+                   dataset_meta, root)$metrics_row
+}
+
+
+# ====================================================================
+# PUBLIC: metrics + PDF report
+# ====================================================================
+dataset_report <- function(
+    dataset_name,
+    keep_species    = spp_keep,
+    anchors_tbl     = NULL,
+    dataset_meta    = NULL,
+    root            = "C:/Users/yonah/OneDrive - Universitetet i Innlandet/Dokumenter/PhD/Sensitivity of detection/Datasets",
+    output_pdf      = NULL,
+    pdf_only        = FALSE
+) {
+  pal <- list(
+    accent       = "#2166ac",
+    accent2      = "#b2182b",
+    anchor_fill  = alpha("#2166ac", 0.12),
+    anchor_border = alpha("#2166ac", 0.40),
+    core_fill    = alpha("#d6604d", 0.15),
+    core_border  = "#d6604d",
+    buffer_fill  = alpha("#4393c3", 0.10),
+    buffer_border = "#4393c3",
+    eow_e_fill   = alpha("#5aae61", 0.12),
+    eow_e_border = "#5aae61",
+    eow_l_fill   = alpha("#984ea3", 0.12),
+    eow_l_border = "#984ea3",
+    station      = "#d73027",
+    effort       = "grey30",
+    bg           = "grey98",
+    grid         = "grey90"
+  )
+
+  prep <- .prepare_dataset(dataset_name, keep_species, anchors_tbl,
+                           dataset_meta, root)
+  list2env(prep, envir = environment())
 
   # ================================================================
   # PAGE 1 — DASHBOARD
@@ -434,32 +456,29 @@ dataset_report <- function(
       "Period", "Duration", "Stations",
       "Mean active cameras", "Temporal coverage",
       "Longest gap", "Trap-days",
-      "Array diameter", "Median NN dist.", "Centroid",
+      "Array diameter", "Median NN dist.", "Mean active NN dist.", "Centroid",
       "Species (kept / all)", "Observations (kept / all)",
       "Anchor slices", "Data quality",
-      if (!is.na(env_covs$bio4_temp_seasonality)) "Temp. seasonality (BIO4)" else NULL,
-      if (!is.na(env_covs$daylength_range_hr)) "Day length range" else NULL,
       if (!is.na(meta_cols$country[1])) "Country" else NULL
     ),
     Value = c(
       paste(format(start_date, "%Y-%m-%d"), "\u2013", format(end_date, "%Y-%m-%d")),
       paste0(comma(duration_days), " days (", duration_years, " yr)"),
-      comma(n_locations),
+      if (n_locations != n_locations_unique)
+        paste0(comma(n_locations_unique), " locations (", comma(n_locations), " locationIDs)")
+      else comma(n_locations_unique),
       formatC(mean_active, digits = 1, format = "f"),
       paste0(temporal_coverage_pct, "% of days with \u22651 camera"),
       paste0(comma(as.integer(longest_gap)), " days"),
       comma(trap_days_total),
       paste0(formatC(trap_array_km, digits = 1, format = "f"), " km"),
       paste0(formatC(median_nn_km, digits = 2, format = "f"), " km"),
+      paste0(formatC(mean_cam_dist_km, digits = 2, format = "f"), " km"),
       paste0(round(centroid_lat, 2), "\u00b0N, ", round(centroid_lon, 2), "\u00b0E"),
       paste0(n_spp_filt, " / ", n_spp_all),
       paste0(comma(n_obs_filt), " / ", comma(n_obs_all)),
       as.character(nrow(ds_anchors)),
       dq_label,
-      if (!is.na(env_covs$bio4_temp_seasonality))
-        formatC(env_covs$bio4_temp_seasonality, digits = 0, format = "f", big.mark = ",") else NULL,
-      if (!is.na(env_covs$daylength_range_hr))
-        paste0(formatC(env_covs$daylength_range_hr, digits = 1, format = "f"), " hr") else NULL,
       if (!is.na(meta_cols$country[1])) meta_cols$country[1] else NULL
     )
   )
@@ -1154,28 +1173,73 @@ dataset_report <- function(
   print(marrangeGrob(grobs = rejected_pages, nrow = 1, ncol = 1))
 
   message("OK: ", dataset_name)
-  invisible(metrics_row)
+  invisible(if (pdf_only) NULL else metrics_row)
 }
 
 
 # ====================================================================
-# Run all datasets
+# Run all datasets  (all modes parallelised)
+# ====================================================================
+#
+# Usage — uncomment ONE mode block below, then run the whole section.
+#
+#   (A) Metrics only   — fast, no PDFs, saves dataset_metadata.csv
+#   (B) PDF only       — regenerate report PDFs, no metrics update
+#   (C) Both           — metrics + PDFs (full run)
 # ====================================================================
 root <- "C:/Users/yonah/OneDrive - Universitetet i Innlandet/Dokumenter/PhD/Sensitivity of detection/Datasets"
 dataset_names <- basename(list.dirs(root, recursive = FALSE, full.names = TRUE))
+N_WORKERS <- min(parallel::detectCores() - 1L, length(dataset_names), 8L)
 
-# Run all reports and collect metrics
-dataset_overview_metrics <- purrr::map(dataset_names, \(nm) {
-  message("\n--- ", nm, " ---")
-  tryCatch(
-    dataset_report(nm),
-    error = function(e) { message("FAILED: ", nm, "\n  ", conditionMessage(e)); NULL }
-  )
-}) |>
+# Pre-compute shared objects so each worker doesn't repeat this work
+dataset_meta_shared <- read_dataset_meta()
+get_world_sf()
+
+# Anchors (reuse from Full1.R if available)
+if (!exists("anchors", inherits = TRUE)) {
+  message("Computing anchors for all datasets...")
+  ds_paths <- list.dirs(root, recursive = FALSE, full.names = TRUE)
+  anchors <- purrr::map_dfr(ds_paths, find_anchors)
+}
+
+# ── (A) Metrics only ─────────────────────────────────────────────────
+run_fn <- \(nm) dataset_metrics(nm, keep_species = spp_keep,
+                                anchors_tbl = anchors,
+                                dataset_meta = dataset_meta_shared)
+
+# ── (B) PDF only ─────────────────────────────────────────────────────
+ run_fn <- \(nm) { dataset_report(nm, keep_species = spp_keep,
+                                   anchors_tbl = anchors,
+                                   dataset_meta = dataset_meta_shared,
+                                   pdf_only = TRUE); NULL }
+# ── (C) Both (metrics + PDF) ─────────────────────────────────────────
+ run_fn <- \(nm) dataset_report(nm, keep_species = spp_keep,
+                                 anchors_tbl = anchors,
+                                 dataset_meta = dataset_meta_shared)
+
+# ── Execute ──────────────────────────────────────────────────────────
+plan(multisession, workers = N_WORKERS)
+message("Running ", length(dataset_names), " datasets on ", N_WORKERS, " workers")
+
+results <- future_map(dataset_names, \(nm) {
+  source(.helpers_path, local = FALSE)
+  tryCatch(run_fn(nm), error = function(e) {
+    warning("FAILED: ", nm, " \u2014 ", conditionMessage(e), call. = FALSE)
+    NULL
+  })
+}, .progress = TRUE, .options = furrr_options(
+  seed = NULL,
+  packages = c("tidyverse", "lubridate", "sf", "cowplot", "ggspatial",
+               "scales", "grid", "geosphere", "gridExtra", "readxl")
+))
+
+plan(sequential)
+
+# ── Collect metrics (modes A and C) ──────────────────────────────────
+dataset_overview_metrics <- results |>
   purrr::compact() |>
   dplyr::bind_rows()
 
-# Save complete metrics table
 if (nrow(dataset_overview_metrics) > 0) {
   readr::write_csv(dataset_overview_metrics, "dataset_metadata.csv")
   saveRDS(dataset_overview_metrics, "dataset_overview_metrics.rds")
@@ -1183,6 +1247,8 @@ if (nrow(dataset_overview_metrics) > 0) {
           nrow(dataset_overview_metrics), " datasets)")
   dataset_overview_metrics
 }
+
+rm(results, dataset_meta_shared, run_fn)
 
 
 # ====================================================================
@@ -1195,33 +1261,34 @@ if (!exists("dataset_overview_metrics", envir = .GlobalEnv) &&
 }
 
 if (exists("dataset_overview_metrics", envir = .GlobalEnv)) {
-  centroids_sf <- dataset_overview_metrics |>
+  .centroids_sf <- dataset_overview_metrics |>
     transmute(dataset = dataset_name, lon = centroid_lon, lat = centroid_lat) |>
     filter(is.finite(lon), is.finite(lat)) |>
     st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE)
 
-  eu_bbox <- st_bbox(c(xmin = -12, ymin = 34, xmax = 35, ymax = 72),
-                     crs = st_crs(4326))
+  .eu_bbox <- st_bbox(c(xmin = -12, ymin = 34, xmax = 35, ymax = 72),
+                      crs = st_crs(4326))
 
-  world_sf <- get_world_sf()
-  world_eu <- if (!is.null(world_sf))
-    suppressWarnings(st_intersection(world_sf, st_as_sfc(eu_bbox)))
+  .world_sf <- get_world_sf()
+  .world_eu <- if (!is.null(.world_sf))
+    suppressWarnings(st_intersection(.world_sf, st_as_sfc(.eu_bbox)))
 
   dataset_map <- ggplot() +
-    { if (!is.null(world_eu)) geom_sf(data = world_eu, fill = "grey95",
-                                       color = "grey75", linewidth = 0.2) } +
-    geom_sf(data = centroids_sf, size = 2.5, alpha = 0.9, color = pal$accent) +
+    { if (!is.null(.world_eu)) geom_sf(data = .world_eu, fill = "grey95",
+                                        color = "grey75", linewidth = 0.2) } +
+    geom_sf(data = .centroids_sf, size = 2.5, alpha = 0.9, color = "#2166ac") +
     ggrepel::geom_text_repel(
-      data = st_drop_geometry(centroids_sf),
+      data = st_drop_geometry(.centroids_sf),
       aes(x = lon, y = lat, label = dataset),
       size = 2.5, max.overlaps = 30, segment.size = 0.2,
       segment.color = "grey60", color = "grey30"
     ) +
-    coord_sf(xlim = c(eu_bbox["xmin"], eu_bbox["xmax"]),
-             ylim = c(eu_bbox["ymin"], eu_bbox["ymax"]), expand = FALSE) +
+    coord_sf(xlim = c(.eu_bbox["xmin"], .eu_bbox["xmax"]),
+             ylim = c(.eu_bbox["ymin"], .eu_bbox["ymax"]), expand = FALSE) +
     labs(title = "Dataset centroids", x = NULL, y = NULL) +
     theme_minimal(base_size = 11) +
-    theme(plot.title = element_text(face = "bold", size = 14, color = pal$accent))
+    theme(plot.title = element_text(face = "bold", size = 14, color = "#2166ac"))
 
   print(dataset_map)
+  rm(.centroids_sf, .world_sf, .world_eu, .eu_bbox, dataset_map)
 }

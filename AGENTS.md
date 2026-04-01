@@ -15,7 +15,7 @@ PhD project evaluating how camera-trap temporal sampling window design affects s
 | `dataset_metadata.csv` | Dataset-level metrics + environmental covariates + camera setup metadata. Written by `dataset_report.R`. |
 | `dataset_meta.xlsx` | (in Datasets/) Provider, country, camera setup metadata per dataset. Joined by `dataset_report.R`. |
 | `wrapped*.rds` (~8–9 MB each) | Intermediate outputs from `dataset_wrapper()`. |
-| `sensitivity_species_data.rds` | Prepared species-level modeling data for sensitivity surface analysis. 222,748 rows, 29 species × window × 35 datasets. |
+| `sensitivity_species_data.rds` | Prepared species-level modeling data for sensitivity surface analysis. 218,663 rows, 29 species × window × 35 datasets. |
 | `sensitivity_richness_data.rds` | Prepared richness-level modeling data. 46,375 rows (window × 35 datasets including sliced datasets). |
 | `sensitivity_gam_models.rds` | All fitted GAM models via `mgcv::bam()`. Contains: 8 model comparison variants for lambda (M1–M6 + M_hab + M_diet), M6-structure detection models for 4 metrics, and 3 community models (richness, proportion, rank correlation). |
 | `sensitivity_models_env.RData` | Full R environment saved after model fitting. Contains `all_models`, `sens_species`, `sens_richness`, and `all_window_species`/`all_window_richness` (minus intermediate fitting objects). Loaded by `sensitivity_results.R` and `sensitivity_figures.R`. |
@@ -29,11 +29,32 @@ PhD project evaluating how camera-trap temporal sampling window design affects s
 | `independence_threshold_summary.csv` | Independence gap sensitivity: 15/30/60-min gap × species counts, rows, dev.expl, surface correlation. |
 | `model_diagnostics_phase3.csv` | Model specification diagnostics: k-doubling, Gamma vs Tweedie, nested RE, smooth BIO4. |
 | `rho_filter_sensitivity_summary.csv` | Rho filter sensitivity: min shared species cutoffs 3–8, boundary mass, dev.expl, surface correlations. |
+| `bio4_removal_surface_comparison.csv` | Surface correlations (7 models) between with-BIO4 and without-BIO4 model fits. All r > 0.97. |
+| `inverse_slice_weighting_summary.csv` | Surface correlations and deviance explained for inverse-slice-weighted models (3 detection metrics). |
+| `inverse_slice_weighting_coefficients.csv` | Parametric coefficient comparison (baseline vs weighted) for 3 detection metrics × 4 covariates. |
 | `covariate_scaling_constants.csv` | Centering/scaling values for all standardised covariates (for reproducibility). |
+| `all_window_species_3day.rds` | Pipeline output with 3-day window step (§3 resolution sensitivity). |
+| `all_window_species_strict.rds` | Pipeline output with strict anchor parameters (§4 anchor sensitivity). |
+| `all_window_species_15min.rds` | Pipeline output with 15-min independence gap (§5 independence sensitivity). |
+| `all_window_species_60min.rds` | Pipeline output with 60-min independence gap (§5 independence sensitivity). |
 | `rarefaction_reference_levels.csv` | Rarefaction reference level (units_ref) per dataset: range 20–1,553 sampling units. |
+| `variance_fraction_summary.csv` | Variance fraction diagnostic (SE²/(d²+SE²)) per metric: lambda/matched_rate bias-dominated (median 9–10%), rate equal (51%). |
+| `loo_cv_predictions.csv` | Observation-level LOO-CV predictions for abs_d_lambda (207,047 rows). |
+| `loo_cv_predictions_matched_rate.csv` | Observation-level LOO-CV predictions for abs_d_matched_rate. |
+| `loo_cv_predictions_rate.csv` | Observation-level LOO-CV predictions for abs_d_rate. |
+| `loo_cv_overall_summary.csv` | LOO-CV overall performance: 3 metrics × r, R², RMSE, MAE. |
+| `loo_cv_by_dataset_all_metrics.csv` | Per-dataset LOO-CV r for all 3 metrics (27 base datasets). |
+| `loo_cv_by_species_all_metrics.csv` | Per-species LOO-CV r for all 3 metrics (18 evaluable species). |
+| `variance_fraction_summary.csv` | Variance fraction diagnostic (SE²/(d²+SE²)) per metric: lambda/matched_rate bias-dominated (median 9–10%), rate equal (51%). |
+| `loo_cv_predictions.csv` | Observation-level LOO-CV predictions for abs_d_lambda (207,047 rows). |
+| `loo_cv_predictions_matched_rate.csv` | Observation-level LOO-CV predictions for abs_d_matched_rate. |
+| `loo_cv_predictions_rate.csv` | Observation-level LOO-CV predictions for abs_d_rate. |
+| `loo_cv_overall_summary.csv` | LOO-CV overall performance: 3 metrics × r, R², RMSE, MAE. |
+| `loo_cv_by_dataset_all_metrics.csv` | Per-dataset LOO-CV r for all 3 metrics (27 base datasets). |
+| `loo_cv_by_species_all_metrics.csv` | Per-species LOO-CV r for all 3 metrics (18 evaluable species). |
 | `BIG_PICTURE_Pager_SamplingWindow.Rmd` | Original pager (Option A framing: deviation from 365d benchmark). |
 | `BIG_PICTURE_Pager_OptionB.Rmd` | Pager reframed as "seasonal detection variation" with application-specific guidance (standardised monitoring, occupancy, trend detection, community comparison). |
-| `BIG_PICTURE_Pager_OptionC.Rmd` | Pager with dual-target approach: models both bias (|d|) and MSE (bias² + variance) as parallel surfaces. Preferred framing. |
+| `BIG_PICTURE_Pager_OptionC.Rmd` | Pager with dual-target approach: models both bias (|d|) and MSE (bias² + variance) as parallel surfaces. **MSE modelling was not implemented**; replaced by variance fraction diagnostic (see below). |
 
 ### Old brms model files (from superseded protocol comparison, kept for reference)
 
@@ -58,6 +79,9 @@ PhD project evaluating how camera-trap temporal sampling window design affects s
 - **`prep_sensitivity_data.R`** — Prepares species-level and richness-level data for the sensitivity surface analysis. Joins species traits, environmental covariates (via `join_env_covariates()` with slice-name matching), and standardises covariates. Outputs `sensitivity_species_data.rds` and `sensitivity_richness_data.rds`.
 - **`models_sensitivity_surface.R`** — All GAM/GAMM models for the sensitivity surface. Uses `mgcv::bam()` with cyclic splines and species-specific tensor product surfaces. Fits 8 model comparison variants (M1–M6 + M_hab + M_diet) for lambda, plus M6 for all other detection metrics, plus 3 community models. Outputs `sensitivity_gam_models.rds` and `sensitivity_models_env.RData` (cleaned environment for downstream scripts).
 - **`sensitivity_results.R`** — Extracts derived quantities from fitted models. Loads `sensitivity_models_env.RData`; creates model shorthand aliases (`mod_lambda`, `mod_rate`, `mod_matched`, `mod_rate_signed`, `mod_richness`, `mod_prop`, `mod_rho`). Answers Q1–Q8 (duration effect, seasonal profiles, full surface predictions, species/guild variation, BIO4 effect, protocol evaluation, optimal timing, richness recovery). Q9 computes the benchmark noise floor (inter-annual CV of lambda_full from multi-year sites, SNR = |d_lambda| / SD_benchmark per observation). Outputs Q1–Q9 CSV files + `model_comparison_table.csv`. **Note:** Uses `tidyr::crossing()` explicitly to avoid namespace conflict with `igraph::crossing()`.
+- **`run_sensitivity_variants.R`** — Standalone script that re-runs the Full1.R data pipeline with 4 parameter configurations for §3–5 robustness checks: 3-day window step, strict anchors, 15-min gap, 60-min gap. Sources function definitions from Full1.R and helpers.R. Outputs `all_window_species_*.rds` and `all_window_richness_*.rds` files. Runtime: ~3 hours.
+- **`sensitivity_appendices.R`** — Unified script for all robustness and sensitivity appendices (§1–7). Supersedes the individual `threshold_sensitivity.R`, `threshold_sensitivity_sites.R`, `threshold_sensitivity_joint.R`, `resolution_sensitivity.R` scripts. Uses the current model formula (without BIO4). Sections 3–5 (resolution, anchor, independence) require pre-computed pipeline data from `run_sensitivity_variants.R`.
+- **`loo_cv_analysis.R`** — Leave-one-dataset-out cross-validation for all 3 detection metrics. 27 base datasets × 3 metrics = 81 refits. Outputs observation-level predictions, per-dataset and per-species summaries, and diagnostic figures. ~150 min runtime.
 - **`sensitivity_figures.R`** — Publication figures (9 main + 1 supplementary PDF): main surface, guild/species surfaces, duration curves, signed rate surface, richness surfaces, protocol evaluation, model comparison, benchmark noise floor (4-panel: CV by species, overall SNR curve, % below noise floor, species-specific SNR curves), and Fig S1 benchmark robustness check (3-panel: shape correlations across benchmarks, deviation magnitude convergence, seasonal profiles at 29d/85d for 180d/270d/365d benchmarks). Loads `sensitivity_models_env.RData` + Q CSV files + `robustness_check_data.rds` + `robustness_benchmark_summary.csv`.
 
 ### 2b. Model Fitting — OLD protocol comparison (superseded by sensitivity surface)
@@ -198,6 +222,16 @@ The previous metric `d_log_rate = log(rate_window + 1e-6) − log(rate_full + 1e
 
 **Replaced by `d_rate = rate_window − rate_full`**, the raw absolute difference in encounter rate. This has no floor amplification (r = +0.55 with baseline rate, same direction as d_lambda), and produces a negative latitude coefficient consistent with the other two metrics.
 
+### d_lambda and d_matched_rate are predominantly positive (not a confound)
+
+`d_lambda` is ~99% positive and `d_matched_rate` ~95% positive across all observations. This is NOT a structural confound — it is a genuine statistical property of the TTE estimator under seasonal heterogeneity.
+
+**Mechanism:** The TTE estimator `lambda = n_first_detections / total_exposure` weights observation time by the survival function. During low-activity seasons, cameras survive longer without detection, contributing large amounts of exposure to the denominator. During high-activity seasons, cameras detect quickly, contributing short exposures. This means `lambda_full` (estimated over 365 days) is pulled toward the **harmonic mean** of seasonal rates, which is always ≤ the arithmetic mean. Sub-windows reset all cameras' clocks, providing clean local estimates at the window's rate. Since most windows sample rates closer to the arithmetic mean of seasonal rates, `lambda_window > lambda_full` for most observations.
+
+**Why d_rate is bidirectional (59%/41%):** Encounter rate `events / trap_days` does not have survival-time weighting — every trap-day contributes equally to the denominator regardless of whether detections occurred. So `d_rate` is symmetric around zero, with positive values when the window captures high-activity periods and negative values when it captures low-activity periods.
+
+**Implications:** The absolute value `|d_lambda|` remains the correct quantity for modelling deviation magnitude. The predominant positivity means a signed d_lambda model would be uninformative (modelling a near-constant sign). The signed `d_rate` model is the appropriate choice for studying directionality of bias.
+
 ### 12-month benchmark defensibility
 
 The 12-month benchmark is defensible as the **operational reference** ("what you'd get with year-round monitoring"), not as ecological "truth." Inter-annual variability in the benchmark is genuine ecological variation, not measurement error. Within each year-slice, sub-windows and FULL share the same ecological conditions, so the within-year deviation is clean.
@@ -266,38 +300,38 @@ Species-specific 2D tensor product surfaces model how detection metric deviation
 abs_d_metric ~
   te(day_start, window_len, bs = c("cc", "tp"), k = c(8, 6), by = species_f) +
   species_f +
-  s_bio4 + l_trapdays + l_nsites + s_latitude + s_trap_array +
+  l_trapdays + l_nsites + s_latitude + s_trap_array +
   s(ds_sp_f, bs = "re")
 family = Gamma(link = "log")
 knots = list(day_start = c(0, 365))
 ```
 
-### Model comparison (lambda metric, 222,748 rows, 29 species)
+**Note on BIO4 removal:** Temperature seasonality (BIO4) was dropped after LOO influence analysis showed the coefficient was non-significant for lambda (p = 0.125), sign-flipped when BE-Leuven was removed, and was collinear with latitude (r = 0.77). Latitude absorbs the shared environmental signal and is stable across 25/26 LOO iterations. Surface correlations between with- and without-BIO4 models exceed 0.97 for all metrics. See `bio4_removal_surface_comparison.csv`.
+
+### Model comparison (lambda metric, 218,663 rows, 29 species)
 
 | Model | Structure | AIC | Dev. explained |
 |-------|-----------|-----|----------------|
-| M1 | Shared surface + covariates | -2,217,140 | 84.6% |
-| M2 | + guild-varying seasonality | -2,230,664 | 85.4% |
-| M3 | Full guild × surface | -2,232,413 | 85.5% |
-| M4 | + bio4 × duration | -2,220,211 | 84.7% |
-| M5 | Guild surface + bio4 × duration | -2,235,716 | 85.7% |
-| M_hab | Minor habitat guild surfaces (9 levels) | -2,235,802 | 85.7% |
-| M_diet | Minor diet guild surfaces (10 levels) | -2,239,747 | 86.0% |
-| **M6** | **Species-specific surfaces (29 species)** | **-2,258,933** | **87.1%** |
+| M1 | Shared surface + covariates | — | — |
+| M2 | + guild-varying seasonality | — | — |
+| M3 | Full guild × surface | — | — |
+| M_hab | Minor habitat guild surfaces (9 levels) | — | — |
+| M_diet | Minor diet guild surfaces (10 levels) | — | — |
+| **M6** | **Species-specific surfaces (29 species)** | — | **87.0%** |
 
-Species-specific surfaces (M6) dominate: ΔAIC ≈ -19,186 over the best guild model (M_diet). The penalization automatically regularises rare species.
+Species-specific surfaces (M6) dominate. M4 and M5 (BIO4 × duration interactions) were removed along with BIO4. Model comparison AIC values need re-running with the updated formulas; the species-effect ΔAIC (≈ −19,000) is expected to remain similar since BIO4 removal does not affect the surface structure (r > 0.997 for lambda).
 
 ### Performance across metrics (M6 structure)
 
 | Response | Family | N | Dev. explained |
 |----------|--------|---|----------------|
-| `abs_d_lambda` | Gamma(log) | 222,749 | 87.1% |
-| `abs_d_matched_rate` | Gamma(log) | 222,749 | 86.9% |
-| `abs_d_rate` | Gamma(log) | 222,749 | 71.4% |
-| `d_rate` (signed) | Gaussian | 222,749 | 19.0% |
+| `abs_d_lambda` | Gamma(log) | 218,663 | 87.0% |
+| `abs_d_matched_rate` | Gamma(log) | 218,663 | 86.4% |
+| `abs_d_rate` | Gamma(log) | 218,663 | 71.2% |
+| `d_rate` (signed) | Gaussian | 218,663 | 19.0% |
 | `prop_sr_full` | Beta(logit) | 46,376 | 77.3% |
 | `d_sr_raref` | Gaussian | 46,376 | 24.7% |
-| `rho_lambda` | Beta(logit) | 23,944 | 36.3% |
+| `rho_lambda` | Beta(logit) | 23,549 | 39.3% |
 
 ### Key design choices
 - **Cyclic spline** `bs = "cc"` for `day_start` with `knots = list(day_start = c(0, 365))`: handles year-wrapping windows (~19% of data).
@@ -310,7 +344,7 @@ Species-specific surfaces (M6) dominate: ΔAIC ≈ -19,186 over the best guild m
 
 ```r
 d_sr_raref ~ te(day_start, window_len, bs = c("cc", "tp"), k = c(12, 8)) +
-  s_bio4 + l_trapdays + l_nsites + s_latitude + s(dataset_f, bs = "re")
+  l_trapdays + l_nsites + s_latitude + s(dataset_f, bs = "re")
 family = gaussian()
 ```
 
@@ -322,11 +356,12 @@ family = gaussian()
 | Q2 | How does deviation depend on window timing (season)? | Marginal effect of `day_start` from the tensor surface |
 | Q3 | How do duration and timing interact? | Full 2D tensor surface; contrast short vs long windows across seasons |
 | Q4 | How do species traits modulate the surface? | Species-specific surfaces (M6); aggregate by guild for interpretation |
-| Q5 | How does temperature seasonality modulate the surface? | `s_bio4` coefficient; optional `s(window_len, by = s_bio4)` interaction |
+| Q5 | How does latitude modulate the surface? | `s_latitude` coefficient (BIO4 dropped due to collinearity and LOO instability) |
 | Q6 | Where do named protocols sit on the surface? | Derived: predict at CORE (day 244, 61d), BUFFER (day 230, 89d), EOW_EARLY (day 214, 60d), EOW_LATE (day 274, 60d) |
 | Q7 | What is the optimal window design? | Derived: find timing that minimises predicted deviation at given durations |
 | Q8 | How does species richness recovery vary across the surface? | Richness models (prop_sr_full, d_sr_raref, rho_lambda) |
 | Q9 | At what duration does deviation fall below benchmark noise? | SNR = \|d_lambda\| / inter-annual SD(lambda_full); species-specific noise-floor thresholds from multi-year sites |
+| Q10 | Do the three absolute deviation metrics agree? | Pairwise correlations and side-by-side surfaces for \|d_lambda\|, \|d_rate\|, \|d_matched_rate\| |
 
 ### Q output files (all from `sensitivity_results.R`)
 
@@ -336,12 +371,14 @@ family = gaussian()
 | `Q2_seasonal_profiles.csv` | Mean deviation by day_start at fixed durations (15, 30, 60, 90, 120d) |
 | `Q3_surface_predictions.csv` | Full 2D surface predictions per metric × guild |
 | `Q4_species_guild_surfaces.csv` | Species-level deviation by window_len × season (29 species) |
-| `Q5_bio4_effect.csv` | BIO4 parametric coefficients per metric |
-| `Q6_protocol_evaluation.csv` | Predicted deviation for 4 named protocols × guild × metric |
+| `Q5_latitude_effect.csv` | Latitude parametric coefficients per metric (replaces Q5_bio4_effect.csv) |
+| `Q6_protocol_evaluation.csv` | Predicted deviation for 4 named protocols × guild × metric (summary) |
+| `Q6_protocol_species.csv` | Species-level protocol predictions (29 species × 4 protocols × 3 metrics) |
 | `Q7_optimal_timing.csv` | Best/worst timing per species at key durations |
 | `Q8_richness_surface.csv` | Richness surface predictions (d_sr_raref, prop_sr_full, rho_lambda) |
 | `Q9_noise_floor.csv` | SNR by window duration (overall) + per-species noise-floor summary at long windows |
-| `model_comparison_table.csv` | AIC/deviance comparison for M1–M6 + M_hab + M_diet models |
+| `Q10_metric_agreement.csv` | Pairwise surface correlations + agreement summary for 3 absolute deviation metrics |
+| `model_comparison_table.csv` | AIC/deviance comparison for M1–M3, M_hab, M_diet, M6 |
 
 ### Figure output files (all from `sensitivity_figures.R`)
 
@@ -349,7 +386,7 @@ family = gaussian()
 |------|---------|
 | `Fig1_sensitivity_surface.pdf` | Main 2D surface (all species pooled, |d_lambda|) with protocol positions |
 | `Fig2_guild_surfaces.pdf` | Guild-specific surfaces (5 guilds excl. Insectivore) |
-| `Fig3_species_surfaces.pdf` | Focal species surfaces (6 species, re-predicted from M6) |
+| `Fig3_species_surfaces.pdf` | Focal species surfaces (6 species, re-predicted from M6). Species-normalised colour (0 = own min, 1 = own max) with protocol position markers (CORE, BUFFER, EOW early/late). |
 | `Fig4_duration_curves.pdf` | Duration-deviation curves by season |
 | `Fig5_signed_rate_surface.pdf` | Signed encounter rate surface (bidirectional) |
 | `Fig6_richness_surfaces.pdf` | Three-panel: species recovered, rank preservation, richness deviation |
@@ -380,11 +417,19 @@ family = gaussian()
 - **Ungulate autumn rut is the primary driver of high deviations**: Cervus elaphus and Sus scrofa show intense deviation spikes for windows centered on Sep–Nov, driven by rutting-season detection rate inflation. Capreolus capreolus shows both spring and autumn peaks. Vulpes vulpes and Lepus europaeus have near-flat surfaces.
 - **Duration effect is steep then plateauing**: Deviation drops ~80% from 15→60 days, then diminishes. Overall mean |d_lambda| goes from 0.026 (15d) → 0.005 (60d) → 0.002 (120d) → 0.001 (183d).
 - **Short windows are most timing-sensitive**: A 15-day window on the rut captures a very different picture than in summer. Windows >75 days are relatively robust to timing choice.
-- **Temperature seasonality (BIO4) is significant** as a linear environmental predictor for most detection metrics (β ranges from −0.15 to −0.23 on the Gamma link scale, p < 0.007 for abs_d_rate and abs_d_matched_rate; p = 0.125 non-significant for abs_d_lambda). Higher seasonality → smaller deviations after accounting for species and window design. The smooth BIO4 test (Phase 3D) confirmed no nonlinear effect (edf = 1.00).
+- **Latitude is a significant environmental predictor** (β ≈ −0.27 to −0.46 on the Gamma link scale, p < 0.001 for abs_d_lambda, abs_d_rate, and abs_d_matched_rate). Higher latitude → smaller deviations, consistent with compressed phenology reducing seasonal detection fluctuations. BIO4 (temperature seasonality) was dropped due to collinearity with latitude (r = 0.77) and LOO instability (sign-flip when BE-Leuven removed, non-significant for lambda). Surface correlations between with- and without-BIO4 models exceed 0.97 for all metrics.
 - **Signed encounter rate deviation is bidirectional**: d_rate is ~59% positive / 41% negative. Summer/autumn windows overestimate encounter rate; winter/spring underestimate. d_lambda and d_matched_rate are ~99% and 95% positive respectively.
 - **Richness recovery favours spring**: `prop_sr_full` (proportion of full-year species recovered) peaks for spring-centered windows (best start ≈ day 99) and increases monotonically with duration. Predicted recovery reaches ~70% at 64 days.
 - **Rank preservation is uniformly high**: rho_lambda (rank correlation of detection rates between window and FULL) reaches ~0.96 at 64 days across the predicted surface (model restricted to windows with ≥5 shared species, N = 23,943; see methods_note_rho_filter.md and appendix_rho_filter_sensitivity.md). The rut inflates all ungulate rates proportionally, preserving ranking even though absolute values are biased.
 - **Snapshot Europe CORE sits on the edge of the autumn hot zone**: Both CORE (day 244, 61d) and BUFFER (day 230, 89d) are positioned in the region of elevated deviation due to the autumn activity spike. At 60d, optimal start ≈ day 344 (early December) for lambda, day 309 (early November) for encounter rate. EOW_EARLY (day 214, 60d) and EOW_LATE (day 274, 60d) split the autumn window at Oct 1; for lambda and matched_rate, all three 60-day autumn protocols show similar predicted deviation — the rut signal spans the full autumn. BUFFER benefits from its longer duration (89d), not its timing.
+
+### MSE modelling decision
+
+The Option C pager proposed modelling both bias (|d|) and MSE (bias² + variance) as parallel surfaces. **MSE modelling was not implemented** in the GAM pipeline. Instead, the variance fraction `SE² / (d² + SE²)` is computed as a diagnostic per observation. If the variance fraction is consistently small (<10–15%), the bias surface is effectively equivalent to the MSE surface, and full MSE modelling adds no information. The old brms MSE scripts (`models_mse_detection_PARALLEL.R`, `models_mse_richness_PARALLEL.R`) are superseded. Two orphaned figures (`figures/mse_decomposition_species.pdf`, `figures/variance_fraction_surface.pdf`) exist from earlier exploration but are not generated by current scripts.
+
+### Camera setup metadata gap
+
+Camera design parameters (bait, trail, spacing, height, target) are available for only **3 of 28 base datasets** in `dataset_metadata.csv`. The remaining 25 are NA. These cannot be used as model covariates. Effort sensitivity (predictions at low/median/high `l_trapdays` and `l_nsites`) is used as a proxy to address the "does study design matter?" question.
 
 ### Previous findings (from old protocol comparison, retained for reference)
 
@@ -403,7 +448,7 @@ Five candidate environmental covariates were tested as replacements for raw lati
 | Annual precip (BIO12) | −0.33 | #4 / #5 / #3 |
 | Precip seasonality (BIO15) | −0.25 | #5 / #4 / #5 |
 
-**Temperature seasonality (BIO4) is the best-performing environmental predictor** across metrics. This finding is confirmed in the GAM sensitivity surface models (Q5), where BIO4 remains significant for encounter rate and matched rate (β ≈ −0.21 to −0.23, p < 0.007), with a non-significant effect for lambda (β = −0.15, p = 0.125) after the extended 183-day window range and SP-donana deployment correction.
+**Temperature seasonality (BIO4) was the best-performing environmental predictor** in the old brms model comparison. However, in the GAM sensitivity surface models, BIO4 was non-significant for lambda (p = 0.125) and was dropped from all models due to collinearity with latitude (r = 0.77) and LOO instability (sign-flip driven by BE-Leuven). Latitude now serves as the sole environmental/geographic covariate and is significant for 3 of 4 detection metrics (p < 0.001 for abs_d_lambda, abs_d_rate, abs_d_matched_rate; non-significant for d_rate_signed).
 
 **Note on `dataset_metadata.csv`**: BE-Leuven is missing from this file. Its environmental covariates were extracted manually: BIO4 = 559.2, BIO12 = 774, BIO15 = 11.2, NDVI amplitude = 0.449. The `centroid_lat` for BE-Leuven IS present in the file (50.80). The `join_env_covariates()` function in `prep_sensitivity_data.R` handles both the BE-Leuven manual fix and the slice-name matching for all covariates including `centroid_lat`.
 
@@ -415,45 +460,79 @@ The Slovenian signal is dominated by **ungulate species with strong rutting-seas
 
 ## Robustness & Sensitivity Analyses
 
-A comprehensive suite of sensitivity analyses tested every analytical choice point — data pipeline parameters, species-inclusion thresholds, and model specification. All checks compare against the baseline M6 model (222,748 rows, 29 species, 87.1% deviance explained) using predicted surface correlations on a shared species × timing × duration grid.
+A comprehensive suite of sensitivity analyses tested every analytical choice point — data pipeline parameters, species-inclusion thresholds, and model specification. All checks compare against the baseline M6 model (218,663 rows, 29 species, 87.0% deviance explained) using predicted surface correlations on a shared species × timing × duration grid.
 
 ### Summary table
 
 | Check | What was varied | Configs | Surface *r* vs baseline | Dev. expl. range |
 |-------|-----------------|---------|-------------------------|-----------------|
-| Species thresholds (individual) | min_events, min_sites, min_occasions | 7 variants | 0.925–1.000 | 85.8–87.0% |
-| Species thresholds (joint) | All 3 simultaneously | 10/3/3, 20/5/5, 30/10/5 | 0.970–1.000 | 87.1–87.2% |
-| Window-start resolution | Step size | 3d, 7d, 14d | 0.979–1.000 | 87.1% (all) |
-| Anchor detection params | 5 slice-detection parameters | Relaxed, Current, Strict | 0.980–1.000 | 87.0–87.1% |
-| Independence gap | Min time between events | 15min, 30min, 60min | 0.9998–1.000 | 87.1% (all) |
-| Basis dimension (k) | Tensor product knots | k=(8,6), k=(16,12) | 0.996 | 87.1–87.3% |
-| Response family | Distributional assumption | Gamma, Tweedie (est. p=1.99) | 0.997 | — |
-| Random effects | Flat vs nested (base-dataset) | 254 vs 183+254 levels | 0.985 | — |
-| BIO4 nonlinearity | Linear vs smooth | Linear, s(bio4,k=5) → edf=1.00 | — | — |
-| Rho filter cutoff | Min shared spp for rank corr. model | ≥3, ≥4, ≥5, ≥6, ≥8 | 0.911–0.953 | 19.0–55.3% |
+| Species thresholds (individual) | min_events, min_sites, min_occasions | 7 variants | 0.962–1.000 | 86.6–87.0% |
+| Species thresholds (joint) | All 3 simultaneously | 10/3/3, 20/5/5, 30/10/5 | 0.977–1.000 | 86.8–87.0% |
+| Window-start resolution | Step size | 3d, 7d, 14d | 0.979–0.998 | 86.9–87.0% |
+| Anchor detection params | 5 slice-detection parameters | Relaxed, Current, Strict | 0.983–1.000 | 87.0–87.2% |
+| Independence gap | Min time between events | 15min, 30min, 60min | 0.9999–1.000 | 86.9–87.0% |
+| Basis dimension (k) | Tensor product knots | k=(8,6), k=(16,12) | 0.995 | 87.0–87.2% |
+| Response family | Distributional assumption | Gamma, Tweedie (est. p=1.99) | 0.998 | — |
+| Random effects | Flat vs nested (base-dataset) | 250 vs 189+250 levels | 0.994 | — |
+| BIO4 removal | With vs without BIO4 covariate | With BIO4, Without BIO4 | 0.971–0.999 | ~87% (identical) |
+| Rho filter cutoff | Min shared spp for rank corr. model | ≥3, ≥4, ≥5, ≥6, ≥8 | 0.931–0.964 | 19.6–86.6% |
 | Benchmark duration | Reference period | 180d, 270d, 365d | 0.879–0.998 | — |
+| Inverse-slice weighting | Multi-year site overrepresentation | 1/n_slices weights (eff. N = 153k) | 0.990–0.992 | 72.6–84.2% |
+| Effort variability (CV) | Within-slice camera effort imbalance | Effort CV as linear covariate | — | ~87% (identical) |
+| LOO-dataset CV | Out-of-sample prediction (RE excluded) | 27 base datasets × 3 metrics | r = 0.38–0.55 | R² = 15–31% (vs fixed-only ceiling 20–42%) |
 
 ### Pipeline-level sensitivity
 
-**Species-inclusion thresholds (Phase 2C).** Individual thresholds (`min_events`: 10/20/30; `min_sites_pos`: 5/10/15; `min_occasions_pos`: non-binding) tested via post-hoc filtering and model re-fitting. Joint thresholds (10/3/3 vs 20/5/5 vs 30/10/5) tested with full data re-preparation. Surface correlations ≥ 0.925 in all comparisons. The `min_occasions_pos` threshold does nothing — no species × window fails exclusively on it. **Note:** The individual threshold appendix (`appendix_threshold_robustness.md`) was written with the old 120-day window range (123,902 rows, 26 species, 86.8% baseline dev.expl). The joint threshold appendix uses the current 183-day range (222,748 rows, 29 species, 87.1%) and confirms the same robustness conclusions. See `appendix_threshold_robustness.md` and `appendix_joint_threshold_sensitivity.md`.
+**Species-inclusion thresholds (Phase 2C).** Individual thresholds (`min_events`: 10/20/30; `min_sites_pos`: 5/10/15; `min_occasions_pos`: non-binding) tested via post-hoc filtering and model re-fitting. Joint thresholds (10/3/3 vs 20/5/5 vs 30/10/5) tested with full data re-preparation. Surface correlations ≥ 0.962 in all individual comparisons, ≥ 0.977 for joint thresholds. The `min_occasions_pos` threshold does nothing — no species × window fails exclusively on it. See `appendix_threshold_robustness.md` and `appendix_joint_threshold_sensitivity.md`.
 
-**Window-start resolution (Phase 2D).** Full pipeline re-run at 3-day step (122 positions, 512,990 rows, 69.7 min). Baseline 7-day (53 positions, 222,748 rows). 14-day subsetted from baseline. Deviance explained identical (87.1%) at all resolutions. The GAM interpolates across the grid, so finer sampling adds no usable information. See `appendix_resolution_sensitivity.md`.
+**Window-start resolution (Phase 2D).** Full pipeline re-run at 3-day step (122 positions, 503,678 rows after prep). Baseline 7-day (53 positions, 218,663 rows). 14-day subsetted from baseline (111,249 rows). Deviance explained identical (~86.9–87.0%) at all resolutions; surface correlations 0.979 (3-day) and 0.998 (14-day) vs baseline. The GAM interpolates across the grid, so finer sampling adds no usable information. See `appendix_resolution_sensitivity.md`.
 
-**Anchor detection parameters (Phase 2E).** Five parameters governing annual slice detection were varied jointly (relaxed/current/strict). Relaxed produced **identical** slices to current (no parameter was binding). Strict dropped 3 slices from 3 datasets (NO-gravberget, SE-grimso-low, 1 NO-evenstadlia year); surface correlation 0.980. See `appendix_anchor_sensitivity.md`.
+**Anchor detection parameters (Phase 2E).** Five parameters governing annual slice detection were varied jointly (relaxed/current/strict). Relaxed produced **identical** slices to current (no parameter was binding). Strict: 34 datasets, 26 species (after prep), 215,047 rows; dev.expl = 87.2%; surface correlation 0.983. See `appendix_anchor_sensitivity.md`.
 
-**Independence gap (Phase 2H).** Full pipeline re-run at 15-min and 60-min (baseline 30-min). This is the most robust check: surface correlations exceed **0.9998**. The deviation metric compares sub-window and benchmark computed with the *same* gap, so effects cancel. See `appendix_independence_threshold_sensitivity.md`.
+**Independence gap (Phase 2H).** Full pipeline re-run at 15-min and 60-min (baseline 30-min). 15-min: 219,447 rows, 27 species, dev.expl = 87.0%, surface r = 1.000. 60-min: 217,407 rows, 26 species, dev.expl = 86.9%, surface r = 0.9999. This is the most robust check: surface correlations exceed **0.9999**. The deviation metric compares sub-window and benchmark computed with the *same* gap, so effects cancel. See `appendix_independence_threshold_sensitivity.md`.
 
 ### Model-level diagnostics (Phase 3)
 
-**k-doubling (3A).** Doubled tensor product basis from k=(8,6) to k=(16,12). Dev.expl +0.2%, ΔAIC = −1,067, surface r = 0.996. Confirms the prior k-check (all k-index ≥ 0.99). Computation cost increases ~7× for negligible gain.
+**k-doubling (3A).** Doubled tensor product basis from k=(8,6) to k=(16,12). Dev.expl +0.2%, ΔAIC = −968, surface r = 0.995. Confirms the prior k-check (all k-index ≥ 0.99). Computation cost increases ~7× for negligible gain.
 
 **Gamma vs Tweedie (3B).** Tweedie family estimated power parameter p = 1.990 (Gamma = 2.0). Surface r = 0.997. The data's mean–variance relationship is Gamma, not compound Poisson–gamma.
 
-**Nested random effects (3C).** Added base-dataset × species RE (183 levels) alongside slice × species RE (254 levels). Base-dataset SD = 0.845; slice SD = 0.350. ΔAIC = −5 (negligible). Surface r = 0.985. The slice-level RE absorbs site-level correlation adequately.
+**Nested random effects (3C).** Added base-dataset × species RE (189 levels) alongside slice × species RE (250 levels). Base-dataset SD = 0.878; slice SD = 0.338. Dev.expl unchanged. Surface r = 0.994. The slice-level RE absorbs site-level correlation adequately.
 
-**Nonlinear BIO4 (3D).** Replaced linear `s_bio4` with `s(s_bio4, k=5)`. Smooth collapsed to edf = 1.00 (linear). ΔAIC = 0. The Slovenian mid-seasonality hump is absorbed by species-specific surfaces and site-level REs, not a systematic quadratic BIO4 effect.
+**Nonlinear BIO4 (3D).** [Historical — BIO4 has since been removed.] Replaced linear `s_bio4` with `s(s_bio4, k=5)`. Smooth collapsed to edf = 1.00 (linear). ΔAIC = 0. The Slovenian mid-seasonality hump is absorbed by species-specific surfaces and site-level REs, not a systematic quadratic BIO4 effect.
+
+**BIO4 removal (3E).** BIO4 was dropped from all models after LOO influence analysis revealed: (1) non-significant for lambda (p = 0.125), (2) sign-flip when BE-Leuven removed (β: −0.15 → +0.61), (3) collinearity with latitude (r = 0.77). Surface correlations between with- and without-BIO4 models: lambda r = 0.999, rate r = 0.996, matched_rate r = 0.996, signed rate r = 0.971; community models r ≥ 0.9999. Deviance explained identical for all 7 models. Latitude absorbs the shared signal (β strengthens from −0.35 → −0.46 for lambda, becomes significant for rate). See `bio4_removal_surface_comparison.csv`.
 
 See `appendix_model_diagnostics.md` and `model_diagnostics_phase3.csv`.
+
+### Inverse-slice weighting (3F)
+
+Multi-year sites (BE-Leuven 5 slices, SP-donana 4, SI-serknica 2, NO-evenstadlia 2) contribute 44.7% of all rows. Because slices from the same physical location share identical environmental covariates (latitude, etc.), they inflate the effective sample size for parametric coefficients without adding independent geographic information. Inverse-slice weighting (w = 1/n_slices per observation) gives each physical location equal total influence (effective N = 153,329).
+
+**Coefficient stability (abs_d_lambda):**
+
+| Term | β (baseline) | β (weighted) | % change | p (both) |
+|------|-------------|-------------|---------|---------|
+| s_latitude | −0.456 | −0.483 | −6% | ~6e-11 |
+| s_trap_array | −0.134 | −0.136 | −2% | 0.035 → 0.043 |
+| l_nsites | −1.21 | −1.37 | −13% | <2e-16 |
+| l_trapdays | +0.82 | +0.98 | +20% | <2e-16 |
+
+All coefficients retain sign, significance, and similar magnitude. Latitude **strengthens slightly** (−0.456 → −0.483), confirming the effect is not inflated by SP-donana's overrepresentation. Consistent results for abs_d_rate (latitude: −3.6% change) and abs_d_matched_rate (−3.3% change). `s_trap_array` is non-significant for rate and matched_rate in both weighted and unweighted models; its large % changes reflect noise around zero.
+
+**Surface correlations:**
+
+| Metric | r (overall) | r (median species) | Dev.expl (base → wt) |
+|--------|------------|-------------------|---------------------|
+| abs_d_lambda | 0.990 | 0.997 | 87.0% → 84.2% |
+| abs_d_rate | 0.992† | 0.977 | 71.4% → 72.6% |
+| abs_d_matched_rate | 0.992 | 0.998 | 86.9% → 83.4% |
+
+†Raw overall r = 0.490 for rate, driven by Canis aureus (r = −0.01; 312 obs, all in single-slice datasets — weighting doesn't change its data, only global intercept shifts) and Castor fiber (r = 0.67; 21 obs in BE-Leuven_slice5 only). Excluding these 2 marginal species: r = 0.992. Rank correlation: 0.953.
+
+**Community models** also tested: d_sr_raref (r = 0.986, 24.7% → 23.7%), prop_sr_full (r = 0.982, 77.3% → 78.7%), rho_lambda (r = 0.991, 36.3% → 40.5%). Latitude retains same sign in all three; prop_sr_full latitude coefficient weakens 16% but stays significant (p = 0.006). Effort covariates retain signs throughout.
+
+See `appendix_inverse_slice_weighting.md`, `inverse_slice_weighting_summary.csv`, and `inverse_slice_weighting_coefficients.csv`.
 
 ### Rho filter sensitivity
 
@@ -461,15 +540,57 @@ Tested minimum shared species cutoffs of 3, 4, 5, 6, and 8 for the rho_lambda (r
 
 | Min shared spp | N obs | Datasets | % boundary (ρ ≈ 1) | Dev. expl. | Surface *r* vs ≥5 |
 |----------------|-------|----------|---------------------|-----------|-------------------|
-| ≥ 3 | 39,862 | 35 | 44.5% | 19.0% | 0.911 |
-| ≥ 4 | 32,750 | 34 | 40.0% | 30.6% | 0.937 |
-| **≥ 5** | **23,943** | **30** | **33.8%** | **36.3%** | **1.000** |
-| ≥ 6 | 17,530 | 27 | 29.3% | 43.0% | 0.953 |
-| ≥ 8 | 5,424 | 12 | 15.6% | 55.3% | 0.916 |
+| ≥ 3 | 39,701 | 35 | 46.0% | 19.6% | 0.931 |
+| ≥ 4 | 32,455 | 34 | 41.6% | 31.9% | 0.947 |
+| **≥ 5** | **23,549** | **30** | **35.8%** | **39.3%** | **1.000** |
+| ≥ 6 | 17,050 | 27 | 31.7% | 47.3% | 0.964 |
+| ≥ 8 | 4,532 | 11 | 20.0% | 86.6% | — |
 
-The ≥5 cutoff balances boundary reduction, dataset retention, and surface stability. At ≥8, dev.expl reaches 55% but only 12 datasets survive. Surface correlations (0.91–0.95) are the lowest of any sensitivity check — boundary inflation genuinely affects model fit. A zero-one-inflated beta model would be more principled but is unavailable in `mgcv::bam()` with tensor product smooths.
+The ≥5 cutoff balances boundary reduction, dataset retention, and surface stability. At ≥8, dev.expl reaches 86.6% but only 11 datasets and 4,532 observations survive — likely overfitting. Surface correlations (0.93–0.96 for ≥3 to ≥6) are among the lowest of any sensitivity check — boundary inflation genuinely affects model fit. A zero-one-inflated beta model would be more principled but is unavailable in `mgcv::bam()` with tensor product smooths.
 
 See `appendix_rho_filter_sensitivity.md` and `rho_filter_sensitivity_summary.csv`.
+
+### Effort variability (3G)
+
+Within-slice camera effort is not uniformly distributed: cameras may fail, be added, or be pulled seasonally. Effort variability was quantified as the CV of monthly active camera counts (from 29-day sliding window `n_sites`). The mean CV across 35 datasets was 0.215 (SD = 0.147, range 0.005–0.516); 11 datasets exceeded CV > 0.3.
+
+**Residual diagnostics.** Mean deviance residuals from the baseline M6 lambda model were nearly identical for high-CV (−0.080) versus low-CV datasets (−0.092). Correlation between effort CV and per-dataset mean residual: r = 0.14, p = 0.43. No consistent seasonal residual asymmetry in high-CV datasets. Deviance leverage ratio (% deviance / % observations) was uncorrelated with effort CV (r = −0.18, p = 0.31).
+
+**Covariate test.** Effort CV (standardised) was added as a linear parametric term to the M6 model for all three detection metrics. Deviance explained was unchanged (87.13%, 71.4%, 86.9% — identical to baseline for all three). ΔAIC ranged from −0.2 to −2.3 (negligible). The coefficient was nominally significant for lambda (β = +0.271, p = 3.6 × 10⁻⁵) and matched_rate (β = +0.125, p = 0.034), but non-significant and oppositely signed for encounter rate (β = −0.042, p = 0.52). The sign inconsistency across metrics rules out a genuine confound. Latitude coefficients were stable (e.g., λ: −0.456 → −0.401).
+
+**SI-eow case study.** The highest-CV dataset (0.52) was examined as a worst case. Its extreme deviations (mean |d_lambda| = 0.032, 2× the next highest) are driven by ungulate detection rates 7–28× higher than other Slovenian sites, with Sus scrofa showing a 28.5-fold seasonal lambda swing. Non-ungulate deviations were typical (0.009). d_lambda and d_matched_rate agreed (r = 0.76–0.97), and the model overpredicted deviations (mean residual = −0.23), the opposite of what effort bias would produce. The site's outlier status reflects ecology and small sample size (4–12 cameras), not effort imbalance.
+
+See `appendix_effort_variability.md`.
+
+### Leave-one-dataset-out cross-validation
+
+For each of the 27 base datasets, the M6 model was re-fitted on all remaining data, then used to predict held-out observations with the random effect excluded. This tests how well the fixed-effect structure (species-specific surfaces + covariates) generalises to unseen sites.
+
+**Overall performance:**
+
+| Metric | In-sample dev.expl | In-sample R² (full) | In-sample R² (fixed only) | LOO-CV R² | LOO-CV r |
+|--------|--------------------|---------------------|---------------------------|-----------|----------|
+| \|d_lambda\| | 87.0% | 0.688 | 0.424 | 0.306 | 0.553 |
+| \|d_matched_rate\| | 86.9% | 0.489 | 0.341 | 0.259 | 0.509 |
+| \|d_rate\| | 71.4% | 0.615 | 0.203 | 0.147 | 0.383 |
+
+LOO-CV R² for lambda (0.306) attains 72% of the in-sample fixed-effects-only R² (0.424). The gap to the full-model R² (0.688) is the RE's contribution (SD = 0.943 on log link). 11 single-dataset species are necessarily dropped from evaluation; 18 species and 207,047 observations receive predictions.
+
+**Per-dataset:** 25/27 datasets have r > 0.5 for lambda. Swedish sites predict best (r = 0.84–0.87). Cross-metric consistency: lambda ↔ matched_rate per-dataset r correlation = 0.76; both ↔ rate ≈ 0.55.
+
+**Per-species:** Best-predicted: *Sciurus vulgaris* (r = 0.77), *Ursus arctos* (0.76), *Alces alces* (0.74). Core ungulates: *Cervus elaphus* (0.47), *Sus scrofa* (0.56), *Capreolus capreolus* (0.50). Poorly-predicted: *Rupicapra rupicapra* (0.08), *Canis lupus* (−0.05), *Felis silvestris* (−0.24).
+
+**Species case studies (ecological causes of LOO failure):**
+
+1. ***Rupicapra rupicapra* at GE-Berchtesgaden_NP (dataset r = 0.10).** Berchtesgaden chamois have 9.5× higher deviations than other sites, driven by **altitudinal migration**: a spring detection peak (April λ = 0.057, 3.5× seasonal swing) as animals descend through the camera-trap zone. The same spring signal appears at IT-Alps (3.6× ratio) but at 11× lower baseline detection. SI-serknica (karst, low relief) is flat. The four other Berchtesgaden species (*Vulpes*, *Capreolus*, *Cervus*, *Lepus timidus*) have deviations 3–11× *below* cross-site averages — opposing biases collapse the overall dataset r. Per-species surface shapes are well-captured (within-species r = 0.60–0.94).
+
+2. ***Canis lupus* (species r = −0.05).** PL-kampinos_NP dominates (1,073/2,972 obs) with 2.8× higher baseline lambda and a strong summer peak (Jun–Aug λ ≈ 0.012–0.016, likely pup-rearing activity). The other 3 sites (2 Slovenian, 1 German) have low, flat detection. When kampinos is held out, the model under-predicts by 22×. Within-dataset shapes are still captured (r = 0.48–0.89).
+
+3. ***Felis silvestris* (species r = −0.24).** Pure data limitation: 798 obs, 91% at GE-Hainich_NP. Deviations are at 17% of the all-species median. When Hainich is held out, only 75 training observations remain — too few for a meaningful surface. Not an ecological mismatch.
+
+**Interpretation:** The surface *shape* (timing × duration patterns) generalises well; absolute deviation *magnitude* at a new site requires the RE. The three case studies illustrate that the RE captures real ecological variation: topographic context (chamois altitudinal migration), population density (Kampinos wolves), and detection rarity (wildcat). These are not model overfitting — they are inherently unpredictable from broad-scale covariates.
+
+See `appendix_loo_cv.md`, `vignette_chamois_altitudinal_migration.md`, and `loo_cv_analysis.R`.
 
 ### Remaining untested choice points
 
@@ -479,17 +600,16 @@ See `appendix_rho_filter_sensitivity.md` and `rho_filter_sensitivity_summary.csv
 
 **Species in model (29):** 13 Carnivore, 8 Ungulate, 4 Lagomorph, 3 Rodent, 1 Insectivore. Includes 2 domestic species (*Bos taurus*, *Ovis aries*). Full list in `appendix_rho_filter_sensitivity.md` species table or `sensitivity_species_data.rds`.
 
-**Covariate scaling constants** (for reproducibility):
+**Covariate scaling constants** (for reproducibility). Both species-level and richness-level data use the SAME constants (computed from the species-level data, which is the canonical reference):
 
 | Covariate | Transformation | Center | Scale | Model name |
 |-----------|---------------|--------|-------|------------|
-| bio4_temp_seasonality | (x − mean)/sd | 649.13 | 99.89 | s_bio4 |
-| latitude | (x − mean)/sd | 49.23 | 7.18 | s_latitude |
-| log1p(trap_array) | (log1p(x) − mean)/sd | 3.00 | 0.60 | s_trap_array |
+| latitude | (x − mean)/sd | 49.05 | 6.50 | s_latitude |
+| log1p(trap_array) | (log1p(x) − mean)/sd | 2.99 | 0.61 | s_trap_array |
 | log1p(trap_days_window) | log1p(x) | — | — | l_trapdays |
 | log1p(n_sites) | log1p(x) | — | — | l_nsites |
 
-Saved as `covariate_scaling_constants.csv`.
+Saved as `covariate_scaling_constants.csv`. Note: the richness data uses `centroid_lat` (from metadata) scaled with the species-level latitude constants, ensuring `s_latitude = 0` maps to the same physical latitude (~49.0°N) in both model families.
 
 **Rarefaction reference levels** vary 20–1,553 sampling units across datasets (median 465). Within each dataset, all windows are rarefied to the same reference level, making within-dataset comparisons fair. Cross-dataset comparisons of absolute rarefied richness should be interpreted with caution given this 77-fold range. Saved as `rarefaction_reference_levels.csv`.
 
@@ -505,6 +625,10 @@ Saved as `covariate_scaling_constants.csv`.
 | `appendix_model_diagnostics.md` | k-doubling, Gamma vs Tweedie, nested RE, smooth BIO4 |
 | `appendix_rho_filter_sensitivity.md` | Rho filter cutoff (≥3 to ≥8 shared species) |
 | `appendix_benchmark_robustness.md` | Benchmark duration (180/270/365d) |
+| `appendix_inverse_slice_weighting.md` | Inverse-slice weighting for multi-year site overrepresentation |
+| `appendix_effort_variability.md` | Within-slice effort variability: CV distribution, residual diagnostics, covariate test, SI-eow case study |
+| `appendix_loo_cv.md` | Leave-one-dataset-out CV: overall/per-dataset/per-species performance, cross-metric consistency, systematic bias, 3 species case studies (chamois, wolf, wildcat) |
+| `vignette_chamois_altitudinal_migration.md` | Detailed case study: Rupicapra rupicapra altitudinal migration at GE-Berchtesgaden vs IT-Alps vs SI-serknica |
 
 ### Sensitivity figures
 
@@ -519,6 +643,10 @@ Saved as `covariate_scaling_constants.csv`.
 | `figures/rho_filter_sensitivity.pdf` | Rho filter cutoff diagnostics (4-panel) |
 | `figures/residual_diagnostics_by_duration.pdf` | Residual diagnostics by window duration bin |
 | `figures/FigS1_robustness_benchmark.pdf` | Benchmark robustness (180/270/365d) |
+| `figures/FigS_loo_cv_diagnostics.pdf` | 4-panel LOO-CV diagnostic (obs vs pred, per-dataset r, per-species r, by duration) |
+| `figures/FigS_loo_cv_cross_metric.pdf` | Cross-metric LOO-CV comparison (overall r, dataset scatter, species heatmap) |
+| `figures/variance_fraction_diagnostic.pdf` | Variance fraction (SE²/(d²+SE²)) distribution by metric and duration |
+| `figures/effort_sensitivity_surface.pdf` | Predicted surface at 10th/50th/90th percentile effort levels |
 
 ## Known Issues and Bug Fixes
 
@@ -528,23 +656,41 @@ Saved as `covariate_scaling_constants.csv`.
 
 **Fix**: `join_env_covariates()` now carries `centroid_lat` alongside the environmental covariates through all three join passes.
 
+### Latitude scaling was inconsistent between species and richness data (FIXED 2026-03-25)
+
+Species-level data used `s_latitude = scale(latitude)` (center=48.57, sd=6.92) while richness data used `s_latitude = scale(centroid_lat)` (center=49.93, sd=6.97). Both represent the same physical quantity but the different row compositions produced different centering, so `s_latitude = 0` mapped to different physical latitudes in the two model families (~1.4° apart).
+
+**Fix**: `prep_sensitivity_data.R` now computes canonical scaling constants from the species-level data and applies them to both datasets. Community models were re-fit (deviance explained unchanged: 24.7%, 77.3%, 36.3%).
+
 ### `igraph::crossing()` masks `tidyr::crossing()` (FIXED 2026-03-11)
 
 If `igraph` is loaded, its `crossing()` function masks `tidyr::crossing()`, causing Q6 protocol evaluation to fail. `sensitivity_results.R` now uses `tidyr::crossing()` explicitly.
 
 ### rho_lambda model boundary inflation (FIXED 2026-03-12, VALIDATED 2026-03-19)
 
-The original rho_lambda community model included all non-NA observations, but ~45% of rho values were effectively at ρ ≈ 1 — artefactual perfect correlations from windows sharing only 3–4 species (Spearman's rho with 3 species has only 7 discrete possible values). This boundary mass violated beta regression assumptions. Filtering to windows with ≥5 shared species (N = 23,943) reduces boundary mass to 34% and raises deviance explained from 19.0% to 36.3%.
+The original rho_lambda community model included all non-NA observations, but ~46% of rho values were effectively at ρ ≈ 1 — artefactual perfect correlations from windows sharing only 3–4 species (Spearman's rho with 3 species has only 7 discrete possible values). This boundary mass violated beta regression assumptions. Filtering to windows with ≥5 shared species (N = 23,549) reduces boundary mass to 36% and raises deviance explained from 19.6% to 39.3%.
 
 A formal sensitivity analysis tested cutoffs of 3, 4, 5, 6, and 8 shared species (see § Robustness below). Deviance explained increases monotonically (19% → 31% → 36% → 43% → 55%) as boundary mass drops, but data retention and geographic coverage decline. The ≥5 cutoff sits at the elbow: adequate boundary reduction while retaining 30 of 35 datasets. Surface correlations with the ≥5 baseline range from 0.91 to 0.95 — lower than for any other sensitivity check, confirming that boundary inflation genuinely affects model fit but not the qualitative surface shape. See `appendix_rho_filter_sensitivity.md` and `methods_note_rho_filter.md` for details.
 
-### `abs_d_rate` has 1 exact zero requiring offset (NOTED 2026-03-18)
+### `abs_d_rate` has 1 exact zero requiring offset (NOTED 2026-03-18, FIXED 2026-03-25)
 
-With the extended 183-day window range, 1 observation out of 222,748 has `abs_d_rate == 0`. A `pmax(..., 1e-10)` offset is applied before Gamma regression. This was not needed with the original 120-day range.
+With the extended 183-day window range, 1 observation out of 222,748 has `abs_d_rate == 0` (Vulpes vulpes, SI-abnik, 162d window starting day 330). The `pmax(..., 1e-10)` offset is now applied in `prep_sensitivity_data.R`. Previously the offset was noted but not implemented — `bam()` with `Gamma(log)` fitted without error, likely handling it internally.
 
 ### SP-donana deployment end-dates corrected (FIXED 2026-03-17)
 
 The original `deployments.csv` for SP-donana had ~50 deployment end-dates that extended beyond actual camera operation. Replaced with `deployments_new.csv` which trims these end-dates. Old file backed up as `deployments_backup_20260316.csv`. The correction changed metric values throughout (all d_rate values, ~91% of d_lambda, ~68% of d_matched_rate) but did not change which species pass thresholds (same row counts per slice). Mean absolute deviations increased slightly (e.g., |d_lambda| from 0.0134 → 0.0145 for SP-donana). Full pipeline re-run, prep data regenerated, and all models re-fitted.
+
+### BE-Leuven rotating single-camera design (NOTED 2026-03-25)
+
+BE-Leuven uses a rotating deployment design: one camera is cycled through ~396 physical locations, spending ~1 month at each before being moved. Each visit receives a unique `deploymentID` and `locationID`, producing 2,696 locationIDs (and 2,704 deploymentIDs) for only 396 distinct coordinates. Within each annual slice, ~209 unique coordinates are visited via ~338–426 deploymentIDs; ~47% of coordinates have 2+ sequential deployments.
+
+**Spatial metrics:** `dataset_report.R` now deduplicates to unique coordinates before computing NN distances and array diameter. Median NN distance corrected from 0 km → 0.07 km (70 m spacing). `stations` reports unique physical locations (396), with the original locationID count shown parenthetically when they differ.
+
+**TTE lambda and encounter rate:** No bias. The pipeline uses `deploymentID` as the sampling unit. Lambda = first detections / total exposure is a rate; both numerator and denominator scale with the number of deployments. Empirically, BE-Leuven d_lambda is 100% positive (consistent with other datasets) and deviation magnitudes are unremarkable.
+
+**Per-camera SEs:** No pseudoreplication signal. After controlling for sample size (SE × √n_sites ≈ per-camera SD), BE-Leuven's lambda variability matches other datasets for *Sus scrofa* and *Vulpes vulpes*, and is slightly *higher* for *Capreolus capreolus*. The raw SEs are smaller at longer windows purely because the rotating design accumulates more deploymentIDs (median 227 at 183d vs 76 elsewhere).
+
+**Temporal overlap at same coordinate:** Only 4 deployment pairs (out of 15,481 same-coordinate pairs) overlap in time (max 35 days). Negligible.
 
 ## Parallelism Settings
 - `N_THREADS = 4` for `bam()` fitting

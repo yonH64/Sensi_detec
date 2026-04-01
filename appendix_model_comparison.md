@@ -1,6 +1,6 @@
 # Appendix: Model Comparison (M1–M6)
 
-Eight model variants were compared for the primary detection metric (|Δλ|, Gamma family with log link; *N* = 123,902). All models share the same fixed covariates (temperature seasonality, log trap-days, log number of sites, latitude, trap array size) and random intercepts (dataset × species). They differ in how the 2D tensor product surface (day-of-year × duration) varies across species or ecological guilds.
+Eight model variants were compared for the primary detection metric (|Δλ|, Gamma family with log link). All models share the same fixed covariates (log trap-days, log number of sites, latitude, trap array size) and random intercepts (dataset × species). They differ in how the 2D tensor product surface (day-of-year × duration) varies across species or ecological guilds.
 
 ---
 

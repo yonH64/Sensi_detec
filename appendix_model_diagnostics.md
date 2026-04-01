@@ -55,18 +55,11 @@ The surface correlation of 0.985 — the lowest of any variant tested — reflec
 
 ---
 
-## D. Nonlinear environmental effect (smooth BIO4)
+## D. BIO4 removal (historical)
 
-**Concern:** Temperature seasonality (BIO4) enters the model as a linear parametric term. The earlier observation that Slovenian sites drive a mid-seasonality deviation hump (see AGENTS.md § "Slovenian sites drive mid-seasonality band deviations") raises the question of whether a smooth (nonlinear) BIO4 effect better fits the data.
+Temperature seasonality (BIO4) was initially included as a linear parametric covariate. It was subsequently removed from all models after LOO influence analysis revealed: (1) non-significance for lambda (*p* = 0.125), (2) sign-flip when BE-Leuven was removed (β: −0.15 → +0.61), and (3) collinearity with latitude (*r* = 0.77). Surface correlations between with- and without-BIO4 models exceeded 0.97 for all seven metrics; deviance explained was identical. Latitude absorbs the shared environmental signal and is stable across 25/26 LOO iterations. See `bio4_removal_surface_comparison.csv`.
 
-**Test:** Replaced the linear `s_bio4` term with a thin plate regression spline `s(s_bio4, k = 5)`.
-
-| Specification | BIO4 edf | ΔAIC | BIO4 *p*-value |
-|---------------|----------|------|----------------|
-| **Baseline (linear)** | **1** | **0** | **0.125** |
-| Smooth (k = 5) | 1.00 | 0 | 0.125 |
-
-The smooth collapsed to an effective degrees of freedom of exactly 1.00 — a straight line. The AIC is identical to the baseline. The penalisation correctly determined that no curvature is supported by the data. The mid-seasonality hump observed in the raw data is a site-level effect (Slovenian ungulate rut) absorbed by the species-specific surfaces and random effects, not a systematic nonlinear BIO4 relationship.
+Prior to removal, a smooth BIO4 term `s(s_bio4, k = 5)` was tested. The smooth collapsed to edf = 1.00 (a straight line), confirming no nonlinear effect. The mid-seasonality deviation hump observed in the raw data is a site-level effect (Slovenian ungulate rut) absorbed by species-specific surfaces and random effects, not a systematic BIO4 relationship.
 
 ---
 
@@ -77,7 +70,7 @@ The smooth collapsed to an effective degrees of freedom of exactly 1.00 — a st
 | k-doubling | +0.2% dev.expl, *r* = 0.996 | Basis adequate |
 | Tweedie family | *p* = 1.99 ≈ Gamma, *r* = 0.997 | Gamma validated |
 | Nested RE | ΔAIC = −5, *r* = 0.985 | Slice-level RE sufficient |
-| Smooth BIO4 | edf = 1.00, ΔAIC = 0 | Linear term adequate |
+| BIO4 removal | Surface *r* > 0.97, dev.expl unchanged | Removed; latitude sufficient |
 
 No model specification variant produces a qualitative change in the sensitivity surface or its interpretation. The baseline M6 specification is well-supported.
 
