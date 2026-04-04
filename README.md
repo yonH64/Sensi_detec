@@ -142,6 +142,18 @@ The 12-month benchmark itself fluctuates year-to-year (median inter-annual CV = 
 
 For most species, the surface carries real signal well beyond typical protocol durations.
 
+### Metric agreement (Q10)
+
+The three absolute deviation metrics capture partly different aspects of detection and agree to varying degrees:
+
+| Metric pair | Pearson *r* | Spearman ρ |
+|-------------|------------|------------|
+| \|d_lambda\| ↔ \|d_matched_rate\| | 0.97 | 0.97 |
+| \|d_lambda\| ↔ \|d_rate\| | 0.26 | 0.43 |
+| \|d_rate\| ↔ \|d_matched_rate\| | 0.37 | 0.50 |
+
+Lambda and matched rate (both TTE-derived, predominantly positive) are near-interchangeable (*r* = 0.97). Raw encounter rate diverges substantially — it is bidirectional (59% positive / 41% negative) and its surface is driven by different seasonal contrasts, with only 71% deviance explained vs 87% for the other two. The duration-effect curve (≈80% reduction by 60 days) and the autumn hotspot hold across all three metrics, but the magnitude and fine-grained species rankings differ for \|d_rate\|.
+
 ------------------------------------------------------------------------
 
 ## Robustness Summary
