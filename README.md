@@ -23,6 +23,42 @@ How does the choice of temporal sampling window affect what camera traps tell us
 
 ------------------------------------------------------------------------
 
+## Metrics & Response Variables
+
+All response variables quantify how much a sub-window deviates from a full 12-month benchmark computed on the same dataset-slice. The benchmark is an **operational reference** ("what year-round monitoring would give"), not ecological truth.
+
+### Species-level detection metrics
+
+| Metric | Formula | Sign | What it measures |
+|--------|---------|------|-----------------|
+| `lambda` | `n_first_detections / total_exposure` | — | Daily detection rate from TTE (time-to-first-event per camera). Window-length independent. |
+| `d_lambda` | `lambda_window − lambda_full` | ~99% positive | Deviation of TTE daily detection rate from the 12-month benchmark. **Primary response variable.** Positive bias arises mechanically because `lambda_full` is pulled toward the harmonic mean of seasonal rates (survival-time weighting), while sub-windows provide clean local estimates. |
+| `rate` | `n_events / trap_days` | — | Encounter rate (events per trap-day). |
+| `d_rate` | `rate_window − rate_full` | ~59% positive | Raw encounter rate deviation. Bidirectional: positive in high-activity seasons, negative in low-activity seasons. |
+| `matched_rate` | `−log(1 − spatial_cov_m) / L` | — | Daily detection rate derived from spatial coverage on matched cameras (cameras active in both window and full year). Deconfounds denominator and accumulation effects. |
+| `d_matched_rate` | `matched_rate_window − matched_rate_full` | ~95% positive | Fully deconfounded detection rate deviation. Closely tracks `d_lambda` (*r* = 0.97). |
+
+**Why three metrics?** `d_lambda` and `d_matched_rate` are both TTE-based and highly correlated but computed from independent sources (event times vs spatial coverage); they serve as a cross-validation of each other. `d_rate` is event-count-based and bidirectional — useful for studying *direction* of bias, not only magnitude.
+
+**Structural confounds avoided.** Three confounds present in earlier metric versions have been resolved:
+- `p_tte` (detection probability) had a length-scaling confound → replaced by `lambda`.
+- `spatial_cov` had denominator and accumulation confounds → replaced by `matched_rate`.
+- `log_rate` amplified small differences at low baseline rates → replaced by `d_rate`.
+
+### Community-level metrics
+
+| Metric | Formula | What it measures |
+|--------|---------|-----------------|
+| `prop_sr_full` | \|spp_window ∩ spp_full\| / \|spp_full\| | Proportion of full-year species detected. Peaks for spring windows. |
+| `d_sr_raref` | `sr_raref_window − sr_raref_full` | Rarefied richness deviation (standardised to common sampling intensity). |
+| `rho_lambda` | Spearman ρ across species | Rank preservation of detection rates between window and full year. Uniformly high (≥0.91 at 64 d), filtered to windows with ≥5 shared species. |
+
+### Absolute vs signed deviations
+
+Models are fitted on **absolute deviations** (`abs_d_lambda`, etc.) to capture *magnitude* of error regardless of direction — the relevant quantity for monitoring design. The signed `d_rate` model is fitted separately to characterise *direction* of bias (over- vs underestimation by season).
+
+------------------------------------------------------------------------
+
 ## Models
 
 All models are GAMMs fitted via `mgcv::bam()` with cyclic splines for day-of-year circularity.
@@ -96,7 +132,7 @@ Species identity dominates the surface (ΔAIC ≈ −19,200 over guild-level mod
 
 ### Duration effect
 
-Deviation drops steeply with window length, then plateaus. ~80% of the reduction occurs by 60 days. Short windows are most timing-sensitive.
+Deviation drops steeply with window length, then plateaus. ~80% of the reduction occurs by 60 days. Short windows are most timing-sensitive. This pattern holds for |d_matched_rate| (68% reduction by 57d, 79% by 85d) but not for |d_rate|, whose predicted deviation is nearly flat across durations — consistent with its lower deviance explained (71% vs 87%) and weaker duration dependence (see [FigS3](figures/FigS3_metric_comparison.pdf)).
 
 ![Duration curves by season](figures/fig4_duration_curves.png)
 
@@ -152,7 +188,7 @@ The three absolute deviation metrics capture partly different aspects of detecti
 | \|d_lambda\| ↔ \|d_rate\| | 0.26 | 0.43 |
 | \|d_rate\| ↔ \|d_matched_rate\| | 0.37 | 0.50 |
 
-Lambda and matched rate (both TTE-derived, predominantly positive) are near-interchangeable (*r* = 0.97). Raw encounter rate diverges substantially — it is bidirectional (59% positive / 41% negative) and its surface is driven by different seasonal contrasts, with only 71% deviance explained vs 87% for the other two. The duration-effect curve (≈80% reduction by 60 days) and the autumn hotspot hold across all three metrics, but the magnitude and fine-grained species rankings differ for \|d_rate\|.
+Lambda and matched rate (both TTE-derived, predominantly positive) are near-interchangeable (*r* = 0.97). Raw encounter rate diverges substantially — it is bidirectional (59% positive / 41% negative) and its surface is driven by different seasonal contrasts, with only 71% deviance explained vs 87% for the other two. The autumn hotspot is visible across all three metrics, but the duration-effect curve and fine-grained species rankings differ for \|d_rate\| (see [FigS3](figures/FigS3_metric_comparison.pdf) for side-by-side surfaces).
 
 ------------------------------------------------------------------------
 
